@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: aurelis-backend
+    env: node
+    plan: free
+    region: ohio
+    buildCommand: npm install
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_UNPOOLED
+        sync: false
+      - key: NEON_BRANCH
+        value: production
+      - key: JWT_SECRET
+        sync: false
