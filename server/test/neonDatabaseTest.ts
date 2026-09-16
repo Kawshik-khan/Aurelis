@@ -18,7 +18,7 @@ async function runDatabaseTestSuite() {
   console.log(`${colors.gold}${colors.bold}     AURELIS — DATABASE & CLOUD DEPLOYMENT TEST       ${colors.reset}`);
   console.log(`${colors.gold}${colors.bold}======================================================${colors.reset}\n`);
 
-  console.log(`${colors.cyan}Engine in Use:${colors.reset} ${db.isPostgres ? 'Neon Cloud PostgreSQL' : 'Local SQLite Fallback'}\n`);
+  console.log(`${colors.cyan}Engine in Use:${colors.reset} Neon Cloud PostgreSQL\n`);
 
   let passed = 0;
   let failed = 0;

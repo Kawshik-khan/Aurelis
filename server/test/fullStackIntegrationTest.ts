@@ -118,7 +118,7 @@ async function run() {
       headers: authHeaders,
       body: JSON.stringify({ currency: 'USD' }),
     });
-    assert(createUsdRes.status === 201, 'Secondary USD currency wallet provisioned in SQLite');
+    assert(createUsdRes.status === 201, 'Secondary USD currency wallet provisioned in PostgreSQL');
 
     // 4. Institutional Foreign Exchange (FX) Conversion
     console.log('\n4. FX Rate Lock & Treasury Conversion:');
@@ -161,7 +161,7 @@ async function run() {
         aurelisTag: '@elena.rostova',
       }),
     });
-    assert(addRecRes.status === 201, 'Beneficiary persisted in SQLite database');
+    assert(addRecRes.status === 201, 'Beneficiary persisted in PostgreSQL database');
     const recId = addRecRes.data?.recipient?.id;
 
     // Toggle favorite
@@ -169,7 +169,7 @@ async function run() {
       method: 'PATCH',
       headers: authHeaders,
     });
-    assert(favRes.data?.recipient?.isFavorite === true, 'Beneficiary marked as favorite in SQLite');
+    assert(favRes.data?.recipient?.isFavorite === true, 'Beneficiary marked as favorite in PostgreSQL');
 
     // 6. Payment Card Issuance & Cryptographic Pin Reveal
     console.log('\n6. Card Issuance, Limits, & PIN Reveal:');
@@ -181,7 +181,7 @@ async function run() {
         type: 'physical',
       }),
     });
-    assert(issueCardRes.status === 201, 'Black Titanium physical card issued in SQLite');
+    assert(issueCardRes.status === 201, 'Black Titanium physical card issued in PostgreSQL');
     const cardId = issueCardRes.data?.card?.id;
 
     // Update limit
@@ -190,7 +190,7 @@ async function run() {
       headers: authHeaders,
       body: JSON.stringify({ monthlyLimit: 75000 }),
     });
-    assert(limitRes.data?.card?.monthlyLimit === 75000, 'Card monthly spending limit updated in SQLite');
+    assert(limitRes.data?.card?.monthlyLimit === 75000, 'Card monthly spending limit updated in PostgreSQL');
 
     // Reveal card credentials
     const revealRes = await request(`/cards/${cardId}/reveal`, {
@@ -211,7 +211,7 @@ async function run() {
         message: 'Q3 Architectural Advisory Retainer',
       }),
     });
-    assert(invoiceRes.status === 201, 'Payment invoice created in SQLite with unique slug');
+    assert(invoiceRes.status === 201, 'Payment invoice created in PostgreSQL with unique slug');
     const slug = invoiceRes.data?.paymentRequest?.slug;
 
     // Pay link lookup
@@ -219,18 +219,18 @@ async function run() {
     assert(payRes.status === 200, 'Public payment request resolved successfully via slug');
     assert(payRes.data?.beneficiary?.name === 'Baron Philippe', 'Invoice displays registered beneficiary metadata');
 
-    // 8. Notifications Lifecycle in SQLite
+    // 8. Notifications Lifecycle
     console.log('\n8. Notifications & Alerts:');
     const notifsRes = await request('/notifications', {
       headers: authHeaders,
     });
-    assert(notifsRes.status === 200, 'Notifications retrieved from SQLite database');
+    assert(notifsRes.status === 200, 'Notifications retrieved from PostgreSQL database');
 
     const readAllRes = await request('/notifications/read-all', {
       method: 'PATCH',
       headers: authHeaders,
     });
-    assert(readAllRes.status === 200, 'All notifications marked as read in SQLite');
+    assert(readAllRes.status === 200, 'All notifications marked as read in PostgreSQL');
 
     // 9. Real-Time WebSocket Event Delivery Verification
     console.log('\n9. WebSocket Event Propagation Check:');
@@ -242,10 +242,10 @@ async function run() {
     ws.close();
     await new Promise((r) => setTimeout(r, 100));
 
-    // 10. Database File Verification
-    console.log('\n10. SQLite Database Persistence Verification:');
-    const userInDb = db.users.get(userId);
-    assert(Boolean(userInDb), 'User record persistently exists in SQLite storage');
+    // 10. Database Persistence Verification
+    console.log('\n10. Neon PostgreSQL Database Persistence Verification:');
+    const userInDb = await db.users.get(userId);
+    assert(Boolean(userInDb), 'User record persistently exists in Neon PostgreSQL storage');
     assert(userInDb?.baseCurrency === 'CHF', 'Base currency correctly recorded as CHF');
 
   } finally {

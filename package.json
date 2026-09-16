@@ -11,12 +11,13 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "start": "tsx server/src/server.ts",
-    "test": "tsx server/test/sqliteDatabaseTest.ts",
-    "test:sqlite": "tsx server/test/sqliteDatabaseTest.ts",
-    "test:auth": "tsx server/test/authDatabaseTest.ts"
+    "test": "tsx server/test/neonDatabaseTest.ts",
+    "test:neon": "tsx server/test/neonDatabaseTest.ts",
+    "test:auth": "tsx server/test/authDatabaseTest.ts",
+    "test:integration": "tsx server/test/fullStackIntegrationTest.ts"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@neon/config": "^1.5.0",

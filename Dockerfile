@@ -3,7 +3,7 @@
 # ==========================================
 # Stage 1: Frontend Build Stage (Vite + React)
 # ==========================================
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 WORKDIR /app
 
 # Copy dependency manifests
@@ -21,7 +21,7 @@ RUN npm run build
 # ==========================================
 # Stage 2: Production Runtime Stage
 # ==========================================
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
