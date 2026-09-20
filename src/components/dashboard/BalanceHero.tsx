@@ -9,11 +9,20 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { formatCurrency } from '../../utils/currency';
+import { CURRENCIES, formatCurrency } from '../../utils/currency';
 import { Button } from '../common/Button';
+import { clsx } from 'clsx';
 
 export const BalanceHero: React.FC = () => {
-  const { user, totalBalanceUSD, openModal, setCurrentTab } = useApp();
+  const {
+    user,
+    totalBalanceUSD,
+    preferredDisplayCurrency,
+    setPreferredDisplayCurrency,
+    totalConsolidatedBalance,
+    openModal,
+    setCurrentTab,
+  } = useApp();
 
   // Dynamic greeting based on hour
   const getGreeting = () => {
@@ -23,7 +32,10 @@ export const BalanceHero: React.FC = () => {
     return 'Good evening';
   };
 
-  const firstName = user.name.split(' ')[0];
+  const firstName = user.name.split(' ')[0] || 'Client';
+  const displayAmount = preferredDisplayCurrency === 'USD' ? totalBalanceUSD : totalConsolidatedBalance;
+  const bdtRate = CURRENCIES.BDT.rateToUSD || 1 / 120;
+  const secondaryAmount = preferredDisplayCurrency === 'USD' ? totalBalanceUSD / bdtRate : totalBalanceUSD;
 
   return (
     <section className="rounded-3xl p-6 sm:p-8 sm:py-9 relative overflow-hidden bg-gradient-to-br from-[#0066FF] via-[#0052CC] to-[#0A1D47] text-white shadow-[0_20px_50px_-12px_rgba(0,102,255,0.35)] border border-blue-400/30">
@@ -44,7 +56,7 @@ export const BalanceHero: React.FC = () => {
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-white bg-white/15 px-2.5 py-0.5 rounded-full border border-white/20 backdrop-blur-md">
               <ShieldCheck className="w-3 h-3 text-cyan-300" />
-              Sovereign Account
+              Sovereign Account • Bangladesh
             </span>
           </div>
 
@@ -52,19 +64,55 @@ export const BalanceHero: React.FC = () => {
             Your global capital, beautifully organized.
           </h1>
 
-          {/* Consolidated Total Balance */}
+          {/* Consolidated Total Balance & Currency Switcher */}
           <div className="pt-2 flex flex-wrap items-baseline gap-3 sm:gap-4">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-blue-200/80 block w-full">
-              TOTAL CONSOLIDATED PORTFOLIO
+            <div className="flex items-center justify-between gap-3 w-full">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-200/80">
+                TOTAL CONSOLIDATED PORTFOLIO
+              </span>
+              {/* Quick Currency Valuation Switcher */}
+              <div className="inline-flex items-center bg-black/25 backdrop-blur-md rounded-xl p-1 border border-white/20 shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setPreferredDisplayCurrency('BDT')}
+                  className={clsx(
+                    'px-2.5 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1',
+                    preferredDisplayCurrency === 'BDT'
+                      ? 'bg-white text-blue-700 shadow-sm'
+                      : 'text-blue-100/80 hover:text-white'
+                  )}
+                  title="View balance in Bangladeshi Taka (BDT)"
+                >
+                  <span>৳ BDT</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreferredDisplayCurrency('USD')}
+                  className={clsx(
+                    'px-2.5 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1',
+                    preferredDisplayCurrency === 'USD'
+                      ? 'bg-white text-blue-700 shadow-sm'
+                      : 'text-blue-100/80 hover:text-white'
+                  )}
+                  title="View balance in US Dollars (USD)"
+                >
+                  <span>$ USD</span>
+                </button>
+              </div>
             </div>
             
             <div className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight font-mono-nums drop-shadow-sm">
-              {formatCurrency(totalBalanceUSD, 'USD')}
+              {formatCurrency(displayAmount, preferredDisplayCurrency)}
             </div>
 
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 border border-white/20 text-white text-xs font-bold backdrop-blur-md">
-              <TrendingUp className="w-3.5 h-3.5 text-cyan-300" />
-              <span>+4.82% this month</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-blue-100/80 bg-white/10 px-2.5 py-1 rounded-lg border border-white/15 backdrop-blur-md">
+                ≈ {formatCurrency(secondaryAmount, preferredDisplayCurrency === 'USD' ? 'BDT' : 'USD')}
+              </span>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 border border-white/20 text-white text-xs font-bold backdrop-blur-md">
+                <TrendingUp className="w-3.5 h-3.5 text-cyan-300" />
+                <span>+4.82% this month</span>
+              </div>
             </div>
           </div>
         </div>

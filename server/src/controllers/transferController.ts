@@ -86,7 +86,7 @@ export class TransferController {
     const { id } = req.params as { id: string };
     const txn = await db.transactions.get(id);
 
-    if (!txn) {
+    if (!txn || txn.userId !== req.user?.id) {
       return res.status(404).json({ error: 'Transaction reference not found.' });
     }
 

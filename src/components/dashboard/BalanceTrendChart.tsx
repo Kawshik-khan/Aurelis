@@ -13,14 +13,16 @@ interface ChartPoint {
 }
 
 export const BalanceTrendChart: React.FC = () => {
-  const { totalBalanceUSD, transactions } = useApp();
+  const { totalBalanceUSD, preferredDisplayCurrency, totalConsolidatedBalance, transactions } = useApp();
   const { isDark } = useTheme();
   const [timeRange, setTimeRange] = useState<TimeRange>('1M');
   const [hoveredPoint, setHoveredPoint] = useState<ChartPoint | null>(null);
 
+  const baseValue = preferredDisplayCurrency === 'USD' ? totalBalanceUSD : totalConsolidatedBalance;
+
   // Dynamically compute points based on the current user's actual balance and transactions
   const points = useMemo<ChartPoint[]>(() => {
-    const current = totalBalanceUSD;
+    const current = baseValue;
 
     // Relative historical factors to create realistic, elegant wealth curves
     const configs: Record<TimeRange, { labels: { date: string; label: string }[]; ratios: number[] }> = {
@@ -86,7 +88,7 @@ export const BalanceTrendChart: React.FC = () => {
         value: val,
       };
     });
-  }, [totalBalanceUSD, timeRange, transactions.length]);
+  }, [baseValue, timeRange, transactions.length]);
 
   const rawMin = useMemo(() => Math.min(...points.map((p) => p.value)), [points]);
   const rawMax = useMemo(() => Math.max(...points.map((p) => p.value)), [points]);
@@ -146,7 +148,7 @@ export const BalanceTrendChart: React.FC = () => {
     return `${pathD} L ${last.x} ${svgHeight - paddingY} L ${first.x} ${svgHeight - paddingY} Z`;
   }, [pathD, coordinates]);
 
-  const activeValue = hoveredPoint ? hoveredPoint.value : totalBalanceUSD;
+  const activeValue = hoveredPoint ? hoveredPoint.value : baseValue;
   const activeLabel = hoveredPoint ? hoveredPoint.label : `Consolidated Balance (${timeRange})`;
 
   return (
@@ -158,7 +160,7 @@ export const BalanceTrendChart: React.FC = () => {
             {activeLabel}
           </div>
           <div className="text-xl sm:text-3xl font-extrabold text-gray-900 dark:text-white mt-1 font-mono-nums tracking-tight">
-            {formatCurrency(activeValue, 'USD')}
+            {formatCurrency(activeValue, preferredDisplayCurrency)}
           </div>
         </div>
 
@@ -284,7 +286,7 @@ export const BalanceTrendChart: React.FC = () => {
               {hoveredPoint.label}
             </div>
             <div className="text-xs font-bold text-gray-900 dark:text-white font-mono-nums">
-              {formatCurrency(hoveredPoint.value, 'USD')}
+              {formatCurrency(hoveredPoint.value, preferredDisplayCurrency)}
             </div>
           </div>
         )}

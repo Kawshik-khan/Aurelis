@@ -26,7 +26,7 @@ export class CardController {
       tier: tier || 'Black Titanium',
       cardNumber: `4821 9084 3192 ${suffix}`,
       maskedNumber: `•••• ${suffix}`,
-      holderName: user ? user.fullName.toUpperCase() : 'ALEX MORGAN',
+      holderName: user ? user.fullName.toUpperCase() : 'DBS CLIENT',
       expiry: '08/31',
       cvv: Math.floor(100 + Math.random() * 900).toString(),
       isFrozen: false,
@@ -53,7 +53,7 @@ export class CardController {
     const { id } = req.params as { id: string };
     const card = await db.cards.get(id);
 
-    if (!card) {
+    if (!card || card.userId !== req.user?.id) {
       return res.status(404).json({ error: 'Card not found.' });
     }
 
@@ -72,7 +72,7 @@ export class CardController {
     const { monthlyLimit } = req.body;
     const card = await db.cards.get(id);
 
-    if (!card) {
+    if (!card || card.userId !== req.user?.id) {
       return res.status(404).json({ error: 'Card not found.' });
     }
 
@@ -90,7 +90,7 @@ export class CardController {
     const { id } = req.params as { id: string };
     const card = await db.cards.get(id);
 
-    if (!card) {
+    if (!card || card.userId !== req.user?.id) {
       return res.status(404).json({ error: 'Card not found.' });
     }
 

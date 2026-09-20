@@ -79,6 +79,8 @@ export const AuthPage: React.FC = () => {
         name: regName.trim(),
         email: regEmail.trim(),
         phone: regPhone.trim(),
+        country: 'Bangladesh',
+        currency: 'BDT',
         password: regPassword,
       });
 

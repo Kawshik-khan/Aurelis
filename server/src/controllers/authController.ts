@@ -1,10 +1,20 @@
-import { Request, Response } from 'express';
+import { Request, Response, CookieOptions } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { db } from '../db/database';
 import { JWT_SECRET } from '../middleware/authMiddleware';
 import { UserEntity } from '../types';
 import { SmsService } from '../services/smsService';
+
+export const AUTH_COOKIE_NAME = 'aurelis_auth_token';
+
+export const getAuthCookieOptions = (): CookieOptions => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  path: '/',
+});
 
 export class AuthController {
   public static async register(req: Request, res: Response) {
@@ -72,7 +82,7 @@ export class AuthController {
       id: walletId,
       userId: newUser.id,
       currency: chosenCurrency,
-      balance: 10000.00, // Isolated opening balance
+      balance: 0.00, // Dynamic opening balance starting at zero
       pendingBalance: 0,
       accountNumber: `DBS ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`,
       iban: `BD89 DBSB 0210 0002 ${Math.floor(1000 + Math.random() * 9000)}`,
@@ -98,6 +108,8 @@ export class AuthController {
     const token = jwt.sign({ id: newUser.id, email: newUser.email, tier: newUser.tier }, JWT_SECRET, {
       expiresIn: '7d',
     });
+
+    res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions());
 
     res.status(201).json({
       message: 'Account successfully registered.',
@@ -126,17 +138,19 @@ export class AuthController {
     const user = await db.getUserByEmail(trimmedEmail);
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found. No account is registered with this email address.' });
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    const isMatch = bcrypt.compareSync(password, user.passwordHash);
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Incorrect password. Please verify and try again.' });
+      return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
     const token = jwt.sign({ id: user.id, email: user.email, tier: user.tier }, JWT_SECRET, {
       expiresIn: '7d',
     });
+
+    res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions());
 
     res.json({
       message: 'Authentication successful.',
@@ -154,13 +168,21 @@ export class AuthController {
     });
   }
 
+  public static async logout(req: Request, res: Response) {
+    res.clearCookie(AUTH_COOKIE_NAME, { path: '/' });
+    res.json({ message: 'Client successfully signed out.' });
+  }
+
   public static async passkeyVerify(req: Request, res: Response) {
     const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.[AUTH_COOKIE_NAME];
     let user: UserEntity | undefined;
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    const tokenToVerify = cookieToken || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : null);
+
+    if (tokenToVerify) {
       try {
-        const decoded = jwt.verify(authHeader.substring(7), JWT_SECRET) as any;
+        const decoded = jwt.verify(tokenToVerify, JWT_SECRET) as any;
         if (decoded?.id) user = await db.getUserById(decoded.id);
       } catch {
         // ignore
@@ -174,6 +196,8 @@ export class AuthController {
     const token = jwt.sign({ id: user.id, email: user.email, tier: user.tier }, JWT_SECRET, {
       expiresIn: '7d',
     });
+
+    res.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions());
 
     res.json({
       message: 'Passkey FIDO2 cryptographic assertion verified.',
@@ -300,9 +324,11 @@ export class AuthController {
     }
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    const existingPin = user.transactionPin || '1234';
-    if (currentPin && currentPin !== existingPin) {
-      return res.status(400).json({ error: 'Current PIN is incorrect.' });
+    const existingPin = user.transactionPin;
+    if (existingPin) {
+      if (!currentPin || currentPin !== existingPin) {
+        return res.status(400).json({ error: 'Current Security PIN is incorrect.' });
+      }
     }
 
     user.transactionPin = newPin;

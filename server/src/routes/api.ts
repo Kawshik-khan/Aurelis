@@ -16,6 +16,7 @@ const router = Router();
 // ================= AUTHENTICATION =================
 router.post('/auth/register', AuthController.register);
 router.post('/auth/login', AuthController.login);
+router.post('/auth/logout', AuthController.logout);
 router.post('/auth/passkey/verify', AuthController.passkeyVerify);
 router.get('/auth/profile', authMiddleware, AuthController.getProfile);
 router.post('/auth/pin', authMiddleware, AuthController.updatePin);

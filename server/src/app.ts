@@ -2,12 +2,22 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import cookieParser from 'cookie-parser';
 import apiRouter from './routes/api';
 
 export const app = express();
 
-app.use(cors({ origin: '*' }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow any origin dynamically to support credentials across Vite dev servers and production
+      callback(null, true);
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 // Request logging middleware
 app.use((req, res, next) => {

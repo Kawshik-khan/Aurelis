@@ -96,7 +96,8 @@ export class AurelisSocketClient {
 
   private identify(userId: string) {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type: 'IDENTIFY', userId }));
+      const token = typeof window !== 'undefined' ? localStorage.getItem('aurelis_auth_token') : null;
+      this.ws.send(JSON.stringify({ type: 'IDENTIFY', userId, token }));
     }
   }
 

@@ -120,6 +120,10 @@ export class NotificationController {
   }
 
   public static async triggerTestAlert(req: AuthenticatedRequest, res: Response) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Test alert endpoint is disabled in production environment.' });
+    }
+
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
@@ -129,7 +133,7 @@ export class NotificationController {
     const { type = 'send', amount = 12500.0, currency = 'USD' } = req.body;
 
     const mockTxn = {
-      id: `TXN-TEST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+      id: `TXN-ALERT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
       userId: user.id,
       type: type as any,
       amount: parseFloat(amount) || 12500.0,
@@ -138,15 +142,15 @@ export class NotificationController {
       destinationCurrency: currency as any,
       fee: 0.0,
       totalCharged: parseFloat(amount) || 12500.0,
-      recipientName: type === 'send' ? 'Geneva Asset Vault SA' : undefined,
-      recipientEmail: type === 'send' ? 'custody@genevavault.ch' : undefined,
-      senderName: type === 'receive' ? 'Zurich Private Family Office' : undefined,
-      paymentMethod: type === 'deposit' ? 'Direct ACH Capital Wire' : `AURELIS ${currency} Reserve Account`,
+      recipientName: type === 'send' ? 'DBS Sovereign Recipient' : undefined,
+      recipientEmail: type === 'send' ? undefined : undefined,
+      senderName: type === 'receive' ? 'DBS Sovereign Sender' : undefined,
+      paymentMethod: type === 'deposit' ? 'Direct Bank Wire' : `DBS ${currency} Sovereign Account`,
       status: 'Completed' as const,
       date: new Date().toISOString(),
-      reference: 'Private Sovereign Liquidity Settlement',
+      reference: 'Sovereign Account Settlement Notification',
       category: 'Transfer',
-      receiptSignature: `AURELIS_TEST_VERIFIED_SHA256_${Date.now()}`,
+      receiptSignature: `DBS_VERIFIED_SHA256_${Date.now()}`,
     };
 
     const userWallets = await db.wallets.findByUser(user.id);
@@ -156,52 +160,56 @@ export class NotificationController {
       mockTxn,
       user,
       {
-        walletBalance: targetWallet ? targetWallet.balance : 250000.0,
+        walletBalance: targetWallet ? targetWallet.balance : 0.0,
         currency: currency as any,
         counterpartyName: mockTxn.recipientName || mockTxn.senderName,
       }
     );
 
     res.json({
-      message: 'Test transaction alerts dispatched via Email and Mobile SMS.',
+      message: 'Transaction alerts dispatched via Email and Mobile SMS.',
       transaction: mockTxn,
       alerts: results,
     });
   }
 
   public static async sendTestEmail(req: AuthenticatedRequest, res: Response) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Test email endpoint is disabled in production environment.' });
+    }
+
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     const user = await db.getUserById(userId);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    const recipient = req.body?.to ? String(req.body.to).trim() : user.email;
+    // Restrict strictly to authenticated user's own email to prevent open relay abuse
+    const recipient = user.email;
 
     const result = await EmailService.sendEmail({
       to: recipient,
-      subject: 'AURELIS Private Wealth — Email Service Verification',
-      text: `Your AURELIS email notification channel is active and operating. Timestamp: ${new Date().toUTCString()}`,
+      subject: 'DBS Bank — Email Service Verification',
+      text: `Your DBS Bank notification channel is active and operating. Timestamp: ${new Date().toUTCString()}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0B0E14; color: #F1F5F9; padding: 40px 24px; border-radius: 12px; max-width: 600px; margin: 0 auto; border: 1px solid #1E293B;">
           <div style="border-bottom: 1px solid #1E293B; padding-bottom: 20px; margin-bottom: 24px;">
-            <span style="letter-spacing: 0.25em; font-size: 11px; text-transform: uppercase; color: #D4AF37; font-weight: 700;">AURELIS PRIVATE WEALTH</span>
+            <span style="letter-spacing: 0.25em; font-size: 11px; text-transform: uppercase; color: #E11D48; font-weight: 700;">DBS BANK DIGITAL BANKING</span>
             <h1 style="font-size: 22px; font-weight: 600; color: #F8FAFC; margin: 8px 0 0 0;">Email Notification Service Connected</h1>
           </div>
           <p style="color: #94A3B8; font-size: 15px; line-height: 1.6;">Hello <strong>${user.fullName}</strong>,</p>
-          <p style="color: #CBD5E1; font-size: 14px; line-height: 1.6;">This test confirms that your <strong>Resend Transactional Email Service</strong> is functioning correctly on the AURELIS platform.</p>
+          <p style="color: #CBD5E1; font-size: 14px; line-height: 1.6;">This notification confirms that your <strong>Transactional Email Service</strong> is functioning correctly on your DBS Bank account.</p>
           <div style="background: #111827; border: 1px solid #1F2937; border-radius: 8px; padding: 18px; margin: 24px 0;">
-            <div style="margin-bottom: 8px;"><strong style="color: #D4AF37; font-size: 13px;">Provider:</strong> <span style="color: #E2E8F0; font-size: 13px;">Resend REST API</span></div>
-            <div style="margin-bottom: 8px;"><strong style="color: #D4AF37; font-size: 13px;">Recipient:</strong> <span style="color: #E2E8F0; font-size: 13px;">${recipient}</span></div>
-            <div><strong style="color: #D4AF37; font-size: 13px;">Timestamp:</strong> <span style="color: #E2E8F0; font-size: 13px;">${new Date().toUTCString()}</span></div>
+            <div style="margin-bottom: 8px;"><strong style="color: #E11D48; font-size: 13px;">Recipient:</strong> <span style="color: #E2E8F0; font-size: 13px;">${recipient}</span></div>
+            <div><strong style="color: #E11D48; font-size: 13px;">Timestamp:</strong> <span style="color: #E2E8F0; font-size: 13px;">${new Date().toUTCString()}</span></div>
           </div>
-          <p style="color: #64748B; font-size: 12px; margin-top: 32px; border-top: 1px solid #1E293B; padding-top: 16px;">Swiss Custody & Interbank Settlement AG &bull; Confidential Banking Infrastructure</p>
+          <p style="color: #64748B; font-size: 12px; margin-top: 32px; border-top: 1px solid #1E293B; padding-top: 16px;">DBS Bank Real-Time Core Settlement &bull; Automated Notifications</p>
         </div>
       `,
     });
 
     res.json({
-      message: result.success ? 'Email dispatched successfully via Resend.' : 'Email dispatch encountered an issue.',
+      message: result.success ? 'Email dispatched successfully.' : 'Email dispatch encountered an issue.',
       success: result.success,
       provider: result.provider,
       id: result.id,
@@ -211,16 +219,23 @@ export class NotificationController {
   }
 
   public static async sendTestSms(req: AuthenticatedRequest, res: Response) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Test SMS endpoint is disabled in production environment.' });
+    }
+
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     const user = await db.getUserById(userId);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
-    const recipient = req.body?.to ? String(req.body.to).trim() : (user.phone || '+1 (555) 019-8234');
-    const msg = req.body?.msg
-      ? String(req.body.msg).trim()
-      : `[AURELIS] Test SMS alert verification via sms.net.bd. Time: ${new Date().toLocaleTimeString()}`;
+    if (!user.phone) {
+      return res.status(400).json({ error: 'User does not have a registered mobile phone number.' });
+    }
+
+    // Restrict strictly to authenticated user's own phone number to prevent open relay abuse
+    const recipient = user.phone;
+    const msg = `[DBS Bank] Real-time SMS notification engine verification. Timestamp: ${new Date().toLocaleTimeString()}`;
 
     const result = await SmsService.sendSms({
       to: recipient,

@@ -450,7 +450,7 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
                     <Search className="w-4 h-4 text-gray-400 dark:text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      placeholder="e.g. usr_02 or victoria@sterling.ch"
+                      placeholder="e.g. @kawshik or recipient@dbsbank.com"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => {
@@ -1056,9 +1056,9 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
                     type="button"
                     disabled={isAuthenticating || authSuccess}
                     onClick={() => {
-                      const demoPin = user?.transactionPin || '1234';
-                      setPin(demoPin);
-                      handleVerifyPinAndSend(demoPin);
+                      const accountPin = user?.transactionPin || '1234';
+                      setPin(accountPin);
+                      handleVerifyPinAndSend(accountPin);
                     }}
                     className="text-blue-600 dark:text-blue-400 font-semibold hover:underline"
                   >

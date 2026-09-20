@@ -13,12 +13,9 @@ import {
 import {
   INITIAL_CARDS,
   INITIAL_NOTIFICATIONS,
-  INITIAL_RECIPIENTS,
   INITIAL_TRANSACTIONS,
   INITIAL_USER,
   INITIAL_WALLETS,
-  VICTORIA_USER,
-  VICTORIA_WALLETS,
 } from '../utils/mockData';
 import { CURRENCIES, generateTxnId } from '../utils/currency';
 import { AurelisApiClient } from '../services/api';
@@ -44,6 +41,9 @@ interface AppContextType {
   user: UserProfile;
   wallets: Wallet[];
   totalBalanceUSD: number;
+  preferredDisplayCurrency: CurrencyCode;
+  setPreferredDisplayCurrency: (currency: CurrencyCode) => void;
+  totalConsolidatedBalance: number;
   transactions: Transaction[];
   recipients: Recipient[];
   cards: CardItem[];
@@ -245,7 +245,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const u = saved ? JSON.parse(saved) : INITIAL_USER;
     if (!u.id) return [];
     const userRecs = localStorage.getItem(`${STORAGE_PREFIX}${u.id}_recipients`);
-    return userRecs ? JSON.parse(userRecs) : [];
+    if (userRecs) {
+      try {
+        const parsed = JSON.parse(userRecs);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return [];
   });
 
   const [cards, setCards] = useState<CardItem[]>(() => {
@@ -597,10 +603,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const totalBalanceUSD = useMemo(() => {
     return wallets.reduce((sum, w) => {
       const meta = CURRENCIES[w.currency];
-      const usdValue = w.balance * meta.rateToUSD;
+      const usdValue = w.balance * (meta?.rateToUSD || 1.0);
       return sum + usdValue;
     }, 0);
   }, [wallets]);
+
+  // Preferred display currency (defaulting to BDT for Bangladeshi users)
+  const [preferredDisplayCurrency, setPreferredDisplayCurrencyState] = useState<CurrencyCode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_PREFIX + 'display_currency');
+      if (saved && (saved in CURRENCIES)) {
+        return saved as CurrencyCode;
+      }
+    }
+    return user.primaryCurrency || 'BDT';
+  });
+
+  const setPreferredDisplayCurrency = useCallback((curr: CurrencyCode) => {
+    setPreferredDisplayCurrencyState(curr);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_PREFIX + 'display_currency', curr);
+    }
+  }, []);
+
+  // Compute Total Consolidated Balance in preferred display currency
+  const totalConsolidatedBalance = useMemo(() => {
+    const targetMeta = CURRENCIES[preferredDisplayCurrency] || CURRENCIES.BDT;
+    const targetRateToUSD = targetMeta?.rateToUSD || 1.0;
+    return totalBalanceUSD / targetRateToUSD;
+  }, [totalBalanceUSD, preferredDisplayCurrency]);
 
   const unreadNotificationsCount = useMemo(() => {
     return notifications.filter((n) => !n.isRead).length;
@@ -1285,8 +1316,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: data.email,
         fullName: data.name,
         phone: data.phone,
-        country: data.country || 'Switzerland',
-        baseCurrency: data.currency || 'USD',
+        country: data.country || 'Bangladesh',
+        baseCurrency: data.currency || 'BDT',
         password: data.password,
       });
 
@@ -1302,10 +1333,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         phone: apiRes.user.phone || data.phone || '',
         aurelisTag: apiRes.user.aurelisTag || `@${data.name.toLowerCase().replace(/\s+/g, '.')}`,
         tier: apiRes.user.tier || data.tier,
-        primaryCurrency: (apiRes.user as any).baseCurrency || data.currency || 'USD',
+        primaryCurrency: (apiRes.user as any).baseCurrency || data.currency || 'BDT',
         address: {
           ...INITIAL_USER.address,
-          country: data.country || 'Switzerland',
+          country: data.country || 'Bangladesh',
         },
       };
 
@@ -1424,6 +1455,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectedTxn,
         openTxnDetail,
         totalBalanceUSD,
+        preferredDisplayCurrency,
+        setPreferredDisplayCurrency,
+        totalConsolidatedBalance,
         unreadNotificationsCount,
         sendMoney,
         exchangeCurrency,

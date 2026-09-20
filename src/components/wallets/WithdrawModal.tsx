@@ -18,12 +18,12 @@ interface WithdrawModalProps {
 export const WithdrawModal: React.FC<WithdrawModalProps> = ({
   isOpen,
   onClose,
-  defaultCurrency = 'USD',
+  defaultCurrency,
 }) => {
-  const { withdrawFunds, wallets, openTxnDetail } = useApp();
-  const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency);
-  const [amount, setAmount] = useState('1000.00');
-  const [destinationAccount, setDestinationAccount] = useState('Chase Checking (•••• 9021)');
+  const { withdrawFunds, wallets, openTxnDetail, preferredDisplayCurrency } = useApp();
+  const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency || preferredDisplayCurrency || 'BDT');
+  const [amount, setAmount] = useState('5000.00');
+  const [destinationAccount, setDestinationAccount] = useState('bKash Wallet (•••• 4810)');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const activeWallet = wallets.find((w) => w.currency === currency);
@@ -76,8 +76,10 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
           </label>
           <div className="space-y-2">
             {[
-              { id: 'brac', name: 'BRAC Bank Checking (•••• 9021)', desc: 'Primary Linked Account · BEFTN / NPSB Instant' },
-              { id: 'bkash', name: 'bKash Wallet (•••• 4810)', desc: 'Instant MFS Disbursement Rail' },
+              { id: 'bkash', name: 'bKash Wallet (•••• 4810)', desc: 'Instant MFS Disbursement Rail · Instant' },
+              { id: 'nagad', name: 'Nagad Wallet (•••• 0184)', desc: 'Instant Postal MFS Disbursement Rail · Instant' },
+              { id: 'brac', name: 'BRAC Bank Checking (•••• 9021)', desc: 'Primary Linked Account · BEFTN / NPSB Real-Time' },
+              { id: 'city', name: 'City Bank Ltd (CityTouch Account)', desc: 'Direct Bangladesh Bank Interbank NPSB' },
             ].map((acc) => {
               const isSelected = destinationAccount === acc.name;
 

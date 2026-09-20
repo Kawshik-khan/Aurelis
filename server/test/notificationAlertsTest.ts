@@ -12,6 +12,8 @@ const baseUrl = `http://localhost:${TEST_PORT}/v1`;
 
 let passed = 0;
 let failed = 0;
+let uniqueEmail = '';
+let testUserId = '';
 
 function assert(condition: unknown, msg: string, detail?: string) {
   if (condition) {
@@ -74,6 +76,7 @@ async function runTest() {
       updatedAt: new Date().toISOString(),
     };
 
+    testUserId = testUser.id;
     // Save test user to db
     await db.users.set(testUser.id, testUser);
 
@@ -203,7 +206,7 @@ async function runTest() {
     // 2. Authentication & API Endpoints Verification
     console.log('\n2. REST API & Endpoints Verification:');
     // Register or login a fresh user to get token
-    const uniqueEmail = `notif.client.${Date.now()}@aurelis.vault`;
+    uniqueEmail = `notif.client.${Date.now()}@aurelis.vault`;
     const regRes = await request('/auth/register', {
       method: 'POST',
       body: JSON.stringify({
@@ -302,10 +305,32 @@ async function runTest() {
     console.error('Fatal test error:', error);
     process.exit(1);
   } finally {
+    try {
+      if (uniqueEmail) {
+        const u = await db.users.get(uniqueEmail);
+        const pool = db.engine.getPool();
+        if (testUserId) {
+          await pool.query('DELETE FROM dispatched_alerts WHERE user_id = $1', [testUserId]);
+          await pool.query('DELETE FROM transactions WHERE user_id = $1', [testUserId]);
+          await pool.query('DELETE FROM wallets WHERE user_id = $1', [testUserId]);
+          await pool.query('DELETE FROM notifications WHERE user_id = $1', [testUserId]);
+          await pool.query('DELETE FROM users WHERE id = $1', [testUserId]);
+        }
+        if (u) {
+          await pool.query('DELETE FROM dispatched_alerts WHERE user_id = $1', [u.id]);
+          await pool.query('DELETE FROM transactions WHERE user_id = $1', [u.id]);
+          await pool.query('DELETE FROM wallets WHERE user_id = $1', [u.id]);
+          await pool.query('DELETE FROM notifications WHERE user_id = $1', [u.id]);
+          await pool.query('DELETE FROM users WHERE id = $1', [u.id]);
+        }
+      }
+    } catch (e) {
+      // ignore cleanup error
+    }
     if (server) {
       server.close();
     }
-    process.exit(0);
+    process.exit(failed > 0 ? 1 : 0);
   }
 }
 

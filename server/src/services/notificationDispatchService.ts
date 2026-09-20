@@ -77,7 +77,7 @@ export class NotificationDispatchService {
       const userPhone =
         user.phone && !user.phone.includes('555')
           ? user.phone
-          : (fallbackPhone || user.phone || '+880 1700-000000');
+          : (fallbackPhone || '');
 
       const typeLabel = this.getTransactionTypeLabel(transaction.type);
       const formattedAmount = this.formatAmount(transaction.amount, transaction.currency);
@@ -90,12 +90,12 @@ export class NotificationDispatchService {
         (transaction.type === 'receive'
           ? transaction.senderName || transaction.recipientName
           : transaction.recipientName || transaction.senderName) ||
-        '01346503914';
+        'DBS Sovereign Vault';
 
       // ============================================================
       // 1. GENERATE & DISPATCH SMS MESSAGE
       // ============================================================
-      if (smsEnabled) {
+      if (smsEnabled && userPhone) {
         const smsAmt = this.formatSmsAmount(transaction.amount, transaction.currency);
         const feeAmt = this.formatSmsAmount(transaction.fee || 0, transaction.currency);
         const balanceVal = options.walletBalance !== undefined ? options.walletBalance : 0;
@@ -153,6 +153,8 @@ export class NotificationDispatchService {
           type: 'SMS_DISPATCHED',
           payload: smsAlert,
         });
+      } else if (smsEnabled && !userPhone) {
+        console.log(`[DBS-SMS] User ${user.id} has SMS alerts enabled but no registered phone number. Skipping SMS dispatch.`);
       }
 
       // ============================================================

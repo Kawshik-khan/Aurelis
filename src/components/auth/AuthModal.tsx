@@ -74,6 +74,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         name: regName.trim(),
         email: regEmail.trim(),
         phone: regPhone.trim(),
+        country: 'Bangladesh',
+        currency: 'BDT',
         password: regPassword,
       });
       if (res.success) {

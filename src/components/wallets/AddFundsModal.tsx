@@ -18,12 +18,12 @@ interface AddFundsModalProps {
 export const AddFundsModal: React.FC<AddFundsModalProps> = ({
   isOpen,
   onClose,
-  defaultCurrency = 'USD',
+  defaultCurrency,
 }) => {
-  const { addFunds, openTxnDetail } = useApp();
-  const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency);
-  const [amount, setAmount] = useState('5000.00');
-  const [fundingSource, setFundingSource] = useState('Chase Private Client (•••• 9021)');
+  const { addFunds, openTxnDetail, preferredDisplayCurrency } = useApp();
+  const [currency, setCurrency] = useState<CurrencyCode>(defaultCurrency || preferredDisplayCurrency || 'BDT');
+  const [amount, setAmount] = useState('10000.00');
+  const [fundingSource, setFundingSource] = useState('bKash MFS Direct Liquidity (•••• 4810)');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,8 +44,8 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Deposit Vault Capital"
-      subtitle="Instantly credit your multi-currency reserve accounts"
+      title="Deposit Capital & Add Funds"
+      subtitle="Instantly fund your account via Bangladeshi MFS or banking rails"
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -68,13 +68,16 @@ export const AddFundsModal: React.FC<AddFundsModalProps> = ({
         {/* Funding Source Selector */}
         <div className="space-y-2">
           <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Depository Funding Method
+            Depository Funding Method (Bangladesh Rails)
           </label>
           <div className="space-y-2">
             {[
-              { id: 'chase', name: 'Chase Private Client (•••• 9021)', desc: 'Direct ACH Wire · Instant ($0 fee)' },
-              { id: 'ubs', name: 'UBS Switzerland Custody (•••• 4810)', desc: 'Interbank SWIFT Wire ($0 fee)' },
-              { id: 'card', name: 'Executive Platinum Card (•••• 8421)', desc: 'Immediate Card Liquidity ($0 fee)' },
+              { id: 'bkash', name: 'bKash MFS Direct Liquidity (•••• 4810)', desc: 'Instant MFS Disbursement Rail · ৳0 Fee' },
+              { id: 'nagad', name: 'Nagad Post Office Rail (•••• 0184)', desc: 'Instant Postal MFS Gateway · ৳0 Fee' },
+              { id: 'rocket', name: 'Dutch-Bangla Rocket MFS (•••• 2390)', desc: 'DBBL Nexus Gateway · ৳0 Fee' },
+              { id: 'brac', name: 'BRAC Bank / City Bank / DBBL Internet Banking', desc: 'Bangladesh Bank NPSB / BEFTN Instant Transfer · ৳0 Fee' },
+              { id: 'card', name: 'Bangladeshi Debit / Credit Card (Q-Cash / VISA / MC)', desc: 'Immediate Card Liquidity · ৳0 Fee' },
+              { id: 'swift', name: 'Inbound Foreign SWIFT Remittance', desc: 'Direct Inward Wage Earner Remittance · 2.5% Incentive' },
             ].map((source) => {
               const isSelected = fundingSource === source.name;
 

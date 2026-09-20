@@ -17,16 +17,14 @@ export async function authMiddleware(
   res: Response,
   next: NextFunction
 ): Promise<void> {
+  const cookieToken = req.cookies?.aurelis_auth_token;
   const authHeader = req.headers.authorization;
+  const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : null;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Authentication required. Please sign in.' });
-    return;
-  }
+  const token = cookieToken || headerToken;
 
-  const token = authHeader.substring(7).trim();
   if (!token) {
-    res.status(401).json({ error: 'Authentication token is missing. Please sign in.' });
+    res.status(401).json({ error: 'Authentication required. Please sign in.' });
     return;
   }
 

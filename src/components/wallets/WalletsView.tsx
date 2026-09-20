@@ -29,6 +29,9 @@ export const WalletsView: React.FC = () => {
   const {
     wallets,
     totalBalanceUSD,
+    preferredDisplayCurrency,
+    setPreferredDisplayCurrency,
+    totalConsolidatedBalance,
     prefillSendModal,
     setDefaultWallet,
     setCurrentTab,
@@ -44,6 +47,8 @@ export const WalletsView: React.FC = () => {
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
   };
+
+  const displayValuation = preferredDisplayCurrency === 'USD' ? totalBalanceUSD : totalConsolidatedBalance;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 animate-fade-in pb-16 lg:pb-0">
@@ -90,14 +95,43 @@ export const WalletsView: React.FC = () => {
         {/* Soft background blue blur */}
         <div className="absolute -right-16 -bottom-16 w-64 h-64 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 space-y-1">
+        <div className="relative z-10 space-y-2">
           <div className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Consolidated Treasury Valuation
           </div>
-          <div className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white font-mono tracking-tight">
-            {formatCurrency(totalBalanceUSD, 'USD')}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-white font-mono tracking-tight">
+              {formatCurrency(displayValuation, preferredDisplayCurrency)}
+            </div>
+            {/* Currency switcher pill */}
+            <div className="inline-flex items-center bg-black/[0.04] dark:bg-white/10 rounded-xl p-0.5 border border-black/10 dark:border-white/15">
+              <button
+                type="button"
+                onClick={() => setPreferredDisplayCurrency('BDT')}
+                className={clsx(
+                  'px-2.5 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer',
+                  preferredDisplayCurrency === 'BDT'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white'
+                )}
+              >
+                ৳ BDT
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreferredDisplayCurrency('USD')}
+                className={clsx(
+                  'px-2.5 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer',
+                  preferredDisplayCurrency === 'USD'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white'
+                )}
+              >
+                $ USD
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pt-0.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
             <span>{wallets.length} active fiat settlement vaults with instant clearing</span>
           </p>

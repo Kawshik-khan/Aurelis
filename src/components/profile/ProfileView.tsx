@@ -11,7 +11,6 @@ import {
   Bell,
   Lock,
   LogOut,
-  Sparkles,
   ShieldAlert,
   UserCheck,
   Mail,
@@ -24,7 +23,15 @@ import { Input } from '../common/Input';
 import { clsx } from 'clsx';
 
 export const ProfileView: React.FC = () => {
-  const { user, updateUserProfile, updateTransactionPin, logout, triggerTestAlert, updateAlertPreferences } = useApp();
+  const {
+    user,
+    updateUserProfile,
+    updateTransactionPin,
+    logout,
+    updateAlertPreferences,
+    preferredDisplayCurrency,
+    setPreferredDisplayCurrency,
+  } = useApp();
 
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
@@ -38,8 +45,6 @@ export const ProfileView: React.FC = () => {
   const [passkeys, setPasskeys] = useState(user.passkeyEnabled);
   const [emailAlerts, setEmailAlerts] = useState(user.emailAlertsEnabled !== false);
   const [smsAlerts, setSmsAlerts] = useState(user.smsAlertsEnabled !== false);
-  const [isSendingTest, setIsSendingTest] = useState(false);
-  const [testSentMessage, setTestSentMessage] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Transaction PIN Change State
@@ -121,17 +126,31 @@ export const ProfileView: React.FC = () => {
     setTimeout(() => setSavedSuccess(false), 2500);
   };
 
-  const handleSendTestAlert = async () => {
-    setIsSendingTest(true);
-    setTestSentMessage(null);
+  const handleToggleEmailAlerts = async (enabled: boolean) => {
+    setEmailAlerts(enabled);
+    updateUserProfile({ emailAlertsEnabled: enabled });
     try {
-      await triggerTestAlert('send', 15000, 'USD');
-      setTestSentMessage('Sample alerts delivered to email & mobile SMS!');
-      setTimeout(() => setTestSentMessage(null), 4000);
-    } catch (err: any) {
-      setTestSentMessage(err.message || 'Failed to dispatch test alerts.');
-    } finally {
-      setIsSendingTest(false);
+      await updateAlertPreferences({
+        emailAlertsEnabled: enabled,
+        smsAlertsEnabled: smsAlerts,
+        phone,
+      });
+    } catch {
+      // Background sync
+    }
+  };
+
+  const handleToggleSmsAlerts = async (enabled: boolean) => {
+    setSmsAlerts(enabled);
+    updateUserProfile({ smsAlertsEnabled: enabled });
+    try {
+      await updateAlertPreferences({
+        emailAlertsEnabled: emailAlerts,
+        smsAlertsEnabled: enabled,
+        phone,
+      });
+    } catch {
+      // Background sync
     }
   };
 
@@ -240,6 +259,83 @@ export const ProfileView: React.FC = () => {
           </div>
         </div>
 
+        {/* Regional & Currency Preferences (Bangladesh) Bento */}
+        <div className="glass-bento rounded-3xl p-6 sm:p-8 space-y-5 text-gray-900 dark:text-white">
+          <div className="border-b border-black/10 dark:border-white/10 pb-3 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Regional & Valuation Currency Preferences
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Configure primary banking currency, domestic clearing rails, and settlement zone
+              </p>
+            </div>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 px-2.5 py-1 rounded-full">
+              Bangladesh Sovereign Rail
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/10 dark:border-white/10 space-y-2">
+              <label className="text-xs font-bold text-gray-900 dark:text-white block">
+                Primary Valuation Currency
+              </label>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Choose the primary currency for displaying consolidated portfolio and charts.
+              </p>
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreferredDisplayCurrency('BDT')}
+                  className={clsx(
+                    'flex-1 py-2 px-3 rounded-xl font-bold text-xs transition-all border flex items-center justify-center gap-1.5 cursor-pointer',
+                    preferredDisplayCurrency === 'BDT'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white dark:bg-white/5 text-gray-700 dark:text-slate-300 border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20'
+                  )}
+                >
+                  <span>৳ BDT (Bangladeshi Taka)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreferredDisplayCurrency('USD')}
+                  className={clsx(
+                    'flex-1 py-2 px-3 rounded-xl font-bold text-xs transition-all border flex items-center justify-center gap-1.5 cursor-pointer',
+                    preferredDisplayCurrency === 'USD'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : 'bg-white dark:bg-white/5 text-gray-700 dark:text-slate-300 border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20'
+                  )}
+                >
+                  <span>$ USD (US Dollar)</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/10 dark:border-white/10 space-y-2">
+              <label className="text-xs font-bold text-gray-900 dark:text-white block">
+                Domestic Clearing Protocol
+              </label>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                National payment rails synchronized with Bangladesh Bank.
+              </p>
+              <div className="pt-2 space-y-1.5 text-xs font-mono text-slate-600 dark:text-slate-300">
+                <div className="flex items-center justify-between">
+                  <span>MFS Liquidity</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-bold">bKash · Nagad · Rocket</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Interbank Routing</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">NPSB / BEFTN / RTGS</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Timezone</span>
+                  <span className="font-bold text-gray-900 dark:text-white">Asia/Dhaka (GMT+6)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Transaction Alerts & Notifications Bento */}
         <div className="glass-bento rounded-3xl p-6 sm:p-8 space-y-5 text-gray-900 dark:text-white">
           <div className="border-b border-black/10 dark:border-white/10 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -252,23 +348,14 @@ export const ProfileView: React.FC = () => {
               </p>
             </div>
 
-            <button
-              type="button"
-              disabled={isSendingTest}
-              onClick={handleSendTestAlert}
-              className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all disabled:opacity-50 cursor-pointer self-start sm:self-auto"
-            >
-              {isSendingTest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-              <span>Test Live Alerts</span>
-            </button>
-          </div>
-
-          {testSentMessage && (
-            <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs flex items-center gap-2 animate-fade-in">
-              <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>{testSentMessage}</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-semibold shadow-2xs self-start sm:self-auto">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span>Live Dispatch Active</span>
             </div>
-          )}
+          </div>
 
           <div className="space-y-3">
             {/* Email Alerts Toggle */}
@@ -290,7 +377,7 @@ export const ProfileView: React.FC = () => {
               <input
                 type="checkbox"
                 checked={emailAlerts}
-                onChange={(e) => setEmailAlerts(e.target.checked)}
+                onChange={(e) => handleToggleEmailAlerts(e.target.checked)}
                 className="w-5 h-5 accent-blue-600 rounded-md cursor-pointer"
               />
             </div>
@@ -306,7 +393,12 @@ export const ProfileView: React.FC = () => {
                     Mobile SMS Text Alerts
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Receive instant real-time SMS messages whenever funds are debited or credited on <strong className="font-mono text-gray-800 dark:text-slate-200">{phone || '+880 1700-000000'}</strong>
+                    Receive instant real-time SMS messages whenever funds are debited or credited on{' '}
+                    {phone ? (
+                      <strong className="font-mono text-gray-800 dark:text-slate-200">{phone}</strong>
+                    ) : (
+                      <span className="text-amber-600 dark:text-amber-400 font-medium">No phone registered (enter mobile number in Personal Information above)</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -314,7 +406,7 @@ export const ProfileView: React.FC = () => {
               <input
                 type="checkbox"
                 checked={smsAlerts}
-                onChange={(e) => setSmsAlerts(e.target.checked)}
+                onChange={(e) => handleToggleSmsAlerts(e.target.checked)}
                 className="w-5 h-5 accent-blue-600 rounded-md cursor-pointer"
               />
             </div>

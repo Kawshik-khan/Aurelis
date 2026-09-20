@@ -32,6 +32,8 @@ export const Header: React.FC<HeaderProps> = ({
     openModal,
     setCurrentTab,
     logout,
+    preferredDisplayCurrency,
+    setPreferredDisplayCurrency,
   } = useApp();
 
   const { isDark, toggleTheme } = useTheme();
@@ -132,6 +134,36 @@ export const Header: React.FC<HeaderProps> = ({
         >
           Add Money
         </Button>
+
+        {/* ৳ BDT / $ USD Currency Switcher Pill */}
+        <div className="hidden sm:inline-flex items-center bg-black/[0.04] dark:bg-white/[0.06] rounded-xl p-1 border border-black/10 dark:border-white/15 shadow-xs">
+          <button
+            type="button"
+            onClick={() => setPreferredDisplayCurrency('BDT')}
+            className={clsx(
+              'px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
+              preferredDisplayCurrency === 'BDT'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+            )}
+            title="Display amounts in Bangladeshi Taka (BDT)"
+          >
+            <span>৳ BDT</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreferredDisplayCurrency('USD')}
+            className={clsx(
+              'px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
+              preferredDisplayCurrency === 'USD'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+            )}
+            title="Display amounts in US Dollars (USD)"
+          >
+            <span>$ USD</span>
+          </button>
+        </div>
 
         {/* 🌗 Theme Toggle Button */}
         <button

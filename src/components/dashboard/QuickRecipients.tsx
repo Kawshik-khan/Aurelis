@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Avatar } from '../common/Avatar';
 import { Recipient } from '../../types';
 
+
 export const QuickRecipients: React.FC = () => {
   const { recipients, openModal, prefillSendModal, setCurrentTab } = useApp();
 
@@ -15,7 +16,7 @@ export const QuickRecipients: React.FC = () => {
             Frequent Beneficiaries
           </h2>
           <p className="text-xs text-gray-500 dark:text-slate-500 mt-0.5">
-            Instant 1-click global dispatch
+            Instant 1-click bKash, Nagad & Bank dispatch
           </p>
         </div>
 
@@ -43,7 +44,7 @@ export const QuickRecipients: React.FC = () => {
           </span>
         </button>
 
-        {/* Saved Beneficiaries or Empty State */}
+        {/* Saved Beneficiaries */}
         {(() => {
           const safeRecipients = Array.isArray(recipients) ? recipients : [];
           if (safeRecipients.length === 0) {
@@ -82,8 +83,8 @@ export const QuickRecipients: React.FC = () => {
                 <div className="text-xs font-bold text-gray-900 dark:text-white group-hover:text-blue-500 dark:group-hover:text-blue-400 truncate max-w-[72px]">
                   {(recipient.name || 'Client').split(' ')[0]}
                 </div>
-                <div className="text-[10px] text-gray-400 dark:text-slate-400 font-mono uppercase">
-                  {recipient.currency || 'USD'}
+                <div className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold truncate max-w-[72px]">
+                  {recipient.bankName ? recipient.bankName.split(' ')[0] : (recipient.currency === 'BDT' ? '৳ BDT' : recipient.currency || 'BDT')}
                 </div>
               </div>
             </button>

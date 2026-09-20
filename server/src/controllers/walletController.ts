@@ -106,9 +106,6 @@ export class WalletController {
       await db.wallets.set(wallet.id, wallet);
     }
 
-    wallet.balance = Number((wallet.balance + parsedAmount).toFixed(4));
-    wallet.updatedAt = new Date().toISOString();
-
     const txnId = TransferService.generateTxnId();
     const txn = {
       id: txnId,
@@ -117,7 +114,7 @@ export class WalletController {
       amount: parsedAmount,
       currency: currency as CurrencyCode,
       senderName: fundingSource || 'Direct ACH Deposit',
-      recipientName: `AURELIS ${currency} Wallet`,
+      recipientName: `DBS Bank ${currency} Wallet`,
       paymentMethod: fundingSource || 'Linked Bank Account',
       fee: 0.00,
       totalCharged: parsedAmount,
@@ -127,18 +124,30 @@ export class WalletController {
       category: 'Deposit',
     };
 
-    await db.transactions.set(txn.id, txn);
+    let freshWallet: WalletEntity = wallet;
 
-    await LedgerService.recordEntry({
-      transactionId: txn.id,
-      walletId: wallet.id,
-      entryType: 'CREDIT',
-      amount: parsedAmount,
-      currency: currency as CurrencyCode,
-      balanceAfter: wallet.balance,
+    await db.engine.transaction(async (client) => {
+      const lockedWallet = await db.engine.getWalletForUpdate(client, wallet.id);
+      if (!lockedWallet) {
+        throw new Error(`Wallet ${wallet.id} not found for deposit.`);
+      }
+      const newBalance = Number((Number(lockedWallet.balance) + parsedAmount).toFixed(4));
+      freshWallet = await db.engine.updateWalletBalanceTx(client, lockedWallet.id, newBalance);
+
+      await db.engine.insertTransactionTx(client, txn as any);
+      await db.engine.insertLedgerEntryTx(client, {
+        id: `led_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        transactionId: txn.id,
+        walletId: wallet.id,
+        entryType: 'CREDIT',
+        amount: parsedAmount,
+        currency: currency as CurrencyCode,
+        balanceAfter: newBalance,
+        createdAt: new Date().toISOString(),
+      });
     });
 
-    await db.wallets.set(wallet.id, wallet);
+    wallet = freshWallet;
     db.saveToFile();
 
     try {
@@ -176,19 +185,16 @@ export class WalletController {
     const { currency, amount, targetAccount } = req.body;
 
     const parsedAmount = parseFloat(amount) || 0;
+    if (parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Valid withdrawal amount required.' });
+    }
+
     const userWallets = await db.wallets.findByUser(userId);
-    const wallet = userWallets.find((w) => w.currency === currency);
+    let wallet = userWallets.find((w) => w.currency === currency);
 
     if (!wallet) {
       return res.status(404).json({ error: `Wallet for ${currency} not found.` });
     }
-
-    if (wallet.balance < parsedAmount) {
-      return res.status(400).json({ error: 'Insufficient funds.' });
-    }
-
-    wallet.balance = Number((wallet.balance - parsedAmount).toFixed(4));
-    wallet.updatedAt = new Date().toISOString();
 
     const txnId = TransferService.generateTxnId();
     const txn = {
@@ -198,7 +204,7 @@ export class WalletController {
       amount: parsedAmount,
       currency: currency as CurrencyCode,
       recipientName: targetAccount || 'External Bank',
-      paymentMethod: `AURELIS ${currency} Wallet`,
+      paymentMethod: `DBS Bank ${currency} Wallet`,
       fee: 0.00,
       totalCharged: parsedAmount,
       status: 'Completed' as const,
@@ -207,18 +213,38 @@ export class WalletController {
       category: 'Transfer',
     };
 
-    await db.transactions.set(txn.id, txn);
-    await db.wallets.set(wallet.id, wallet);
+    let freshWallet: WalletEntity = wallet;
 
-    await LedgerService.recordEntry({
-      transactionId: txn.id,
-      walletId: wallet.id,
-      entryType: 'DEBIT',
-      amount: parsedAmount,
-      currency: currency as CurrencyCode,
-      balanceAfter: wallet.balance,
-    });
+    try {
+      await db.engine.transaction(async (client) => {
+        const lockedWallet = await db.engine.getWalletForUpdate(client, wallet.id);
+        if (!lockedWallet) {
+          throw new Error(`Wallet ${wallet.id} not found for withdrawal.`);
+        }
+        if (Number(lockedWallet.balance) < parsedAmount) {
+          throw new Error('Insufficient funds.');
+        }
 
+        const newBalance = Number((Number(lockedWallet.balance) - parsedAmount).toFixed(4));
+        freshWallet = await db.engine.updateWalletBalanceTx(client, lockedWallet.id, newBalance);
+
+        await db.engine.insertTransactionTx(client, txn as any);
+        await db.engine.insertLedgerEntryTx(client, {
+          id: `led_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          transactionId: txn.id,
+          walletId: wallet.id,
+          entryType: 'DEBIT',
+          amount: parsedAmount,
+          currency: currency as CurrencyCode,
+          balanceAfter: newBalance,
+          createdAt: new Date().toISOString(),
+        });
+      });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Withdrawal failed.' });
+    }
+
+    wallet = freshWallet;
     db.saveToFile();
 
     try {

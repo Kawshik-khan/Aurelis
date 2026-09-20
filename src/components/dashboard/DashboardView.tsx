@@ -22,33 +22,37 @@ export const DashboardView: React.FC = () => {
         <div className="lg:col-span-4 space-y-6 sm:space-y-8">
           <QuickRecipients />
 
-          {/* Institutional Spot Execution Bento Card */}
+          {/* Bangladesh Institutional Spot Execution Bento Card */}
           <div className="glass-bento p-6 relative overflow-hidden text-gray-900 dark:text-white">
             {/* Ambient blue glow orb */}
             <div className="absolute -right-6 -top-6 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl pointer-events-none" />
 
             <div className="relative z-10">
-              <div className="inline-flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-white/10 px-2.5 py-1 rounded-md mb-3 border border-blue-200 dark:border-white/15">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse" />
-                Institutional FX Execution
+              <div className="inline-flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-white/10 px-2.5 py-1 rounded-md mb-3 border border-emerald-200 dark:border-white/15">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
+                Bangladesh Bank Rails & MFS
               </div>
 
               <h3 className="text-lg font-bold tracking-tight text-gray-900 dark:text-white mb-2">
-                Real-Time Spot Treasury
+                Real-Time Spot Treasury (USD/BDT)
               </h3>
 
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
-                Execute cross-currency transfers up to $500,000 with sub-second clearing and institutional interbank spread parity.
+                Execute cross-currency transfers with sub-second clearing across Bangladesh Bank BEFTN, NPSB, and instant MFS networks (bKash & Nagad).
               </p>
 
               <div className="space-y-2 pt-3 border-t border-black/10 dark:border-white/10 text-xs font-mono">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">USD/EUR Rate</span>
-                  <span className="text-gray-900 dark:text-white font-bold">1.0845</span>
+                  <span className="text-slate-500 dark:text-slate-400">USD/BDT Spot Rate</span>
+                  <span className="text-gray-900 dark:text-white font-bold">120.00 ৳</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Interbank Spread</span>
-                  <span className="text-blue-600 dark:text-blue-400 font-bold">0.00% Zero Fee</span>
+                  <span className="text-slate-500 dark:text-slate-400">MFS Clearing Rails</span>
+                  <span className="text-blue-600 dark:text-blue-400 font-bold">bKash · Nagad · Rocket</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Interbank Protocol</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">NPSB / BEFTN (Instant)</span>
                 </div>
               </div>
             </div>

@@ -37,20 +37,40 @@ export class LedgerService {
   }
 
   /**
-   * Audit ledger balance integrity validation
+   * Audit ledger balance integrity validation against actual PostgreSQL records.
+   * Derives mathematical net balance from SUM(CREDITS) - SUM(DEBITS) and compares to current wallet balance.
    */
-  public static async verifyLedgerIntegrity(walletId: string, currentBalance: number): Promise<boolean> {
+  public static async verifyLedgerIntegrity(
+    walletId: string,
+    currentBalance?: number
+  ): Promise<{ valid: boolean; calculatedBalance: number; actualBalance: number; discrepancy: number }> {
     const entries = await this.getWalletLedger(walletId);
     let calculated = 0;
 
     for (const e of entries) {
       if (e.entryType === 'CREDIT') {
-        calculated += e.amount;
+        calculated += Number(e.amount);
       } else {
-        calculated -= e.amount;
+        calculated -= Number(e.amount);
       }
     }
 
-    return true;
+    calculated = Number(calculated.toFixed(4));
+
+    let actual = currentBalance;
+    if (actual === undefined) {
+      const wallet = await db.wallets.get(walletId);
+      actual = wallet ? Number(wallet.balance) : 0;
+    }
+
+    const discrepancy = Number(Math.abs(calculated - actual).toFixed(4));
+    const valid = discrepancy < 0.0001;
+
+    return {
+      valid,
+      calculatedBalance: calculated,
+      actualBalance: actual,
+      discrepancy,
+    };
   }
 }

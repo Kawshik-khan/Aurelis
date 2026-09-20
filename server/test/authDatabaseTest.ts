@@ -152,7 +152,7 @@ async function runAuthDatabaseTestSuite() {
     if (userWallets.length > 0) {
       const baseWallet = userWallets[0];
       assert(baseWallet.currency === 'CHF', 'Provisioned wallet currency matches user selection (CHF)', baseWallet.currency);
-      assert(baseWallet.balance === 10000, 'Provisioned wallet contains initial complimentary sovereign balance (10,000.00)', `Balance: ${baseWallet.balance}`);
+      assert(baseWallet.balance === 0, 'Provisioned wallet contains initial dynamic zero balance (0.00)', `Balance: ${baseWallet.balance}`);
       assert(baseWallet.isPrimary === true, 'Provisioned wallet is marked as primary');
       assert(Boolean(baseWallet.iban), 'Provisioned wallet has Swiss IBAN generated', baseWallet.iban);
     }
@@ -372,11 +372,11 @@ async function runAuthDatabaseTestSuite() {
     assert(Boolean(minRegData.user?.baseCurrency), 'Minimal signup assigns base currency', minRegData.user?.baseCurrency);
     assert(!minRegData.user?.tier, 'Minimal signup has no tier', minRegData.user?.tier);
 
-    // Verify initial balance in backend database is isolated 10,000.00
+    // Verify initial balance in backend database is dynamic 0.00
     const genevieveWallets = (await db.wallets.values()).filter((w) => w.userId === minRegData.user?.id);
     assert(genevieveWallets.length === 1, 'Auto-provisioned exactly 1 base wallet for minimal signup');
     assert(genevieveWallets[0].currency === minRegData.user?.baseCurrency, 'Base wallet currency matches user currency');
-    assert(genevieveWallets[0].balance === 10000.0, 'Base wallet opening balance is isolated 10,000.00');
+    assert(genevieveWallets[0].balance === 0.0, 'Base wallet opening balance is dynamic 0.00');
 
     // ---------------------------------------------------------
     // TEST 10: Counterparty User Lookup Endpoint (GET /users/lookup)
@@ -522,6 +522,20 @@ async function runAuthDatabaseTestSuite() {
       `Alex (usr_01) maintains personal beneficiaries access`
     );
 
+    // Inject funds into Beatrix's wallet so she can execute transfer
+    await fetch(`${baseUrl}/wallets/deposit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${beatrixToken}`,
+      },
+      body: JSON.stringify({
+        currency: 'BDT',
+        amount: 1000.0,
+        fundingSource: 'Capital Reserve Deposit',
+      }),
+    });
+
     // Beatrix transfers funds to Alex by email
     const beatrixTransferRes = await fetch(`${baseUrl}/transfers/execute`, {
       method: 'POST',
@@ -584,7 +598,19 @@ async function runAuthDatabaseTestSuite() {
     console.error(`${colors.red}Test execution encountered an error:${colors.reset}`, err);
     failedTests++;
   } finally {
-    // Teardown test server
+    // Teardown test server & clean ephemeral test records
+    try {
+      const pool = db.engine.getPool();
+      await pool.query(`
+        DELETE FROM transactions WHERE user_id LIKE 'usr_test_%' OR user_id = 'usr_01' OR user_id IN (SELECT id FROM users WHERE email LIKE '%@sovereign.ch' OR email LIKE '%@rothschild.vault' OR email LIKE '%@sovereign.at' OR email LIKE '%@sovereign.uk' OR email = 'alex@aurelis.com');
+        DELETE FROM wallets WHERE user_id LIKE 'usr_test_%' OR user_id = 'usr_01' OR user_id IN (SELECT id FROM users WHERE email LIKE '%@sovereign.ch' OR email LIKE '%@rothschild.vault' OR email LIKE '%@sovereign.at' OR email LIKE '%@sovereign.uk' OR email = 'alex@aurelis.com');
+        DELETE FROM recipients WHERE user_id LIKE 'usr_test_%' OR user_id = 'usr_01' OR email = 'alex@aurelis.com';
+        DELETE FROM notifications WHERE user_id LIKE 'usr_test_%' OR user_id = 'usr_01';
+        DELETE FROM users WHERE email LIKE '%@sovereign.ch' OR email LIKE '%@rothschild.vault' OR email LIKE '%@sovereign.at' OR email LIKE '%@sovereign.uk' OR email = 'alex@aurelis.com' OR id = 'usr_01';
+      `);
+    } catch {
+      // ignore
+    }
     await new Promise<void>((resolve) => {
       server.close(() => resolve());
     });

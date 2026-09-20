@@ -44,6 +44,7 @@ export class AurelisApiClient {
     let response: Response;
     try {
       response = await fetch(targetUrl, {
+        credentials: 'include',
         ...options,
         headers,
       });
@@ -51,6 +52,7 @@ export class AurelisApiClient {
       // Fallback to direct backend if proxy is not configured
       if (API_BASE === '/v1' && typeof window !== 'undefined') {
         response = await fetch(`http://localhost:4000/v1${endpoint}`, {
+          credentials: 'include',
           ...options,
           headers,
         });
@@ -119,13 +121,18 @@ export class AurelisApiClient {
     return res;
   }
 
-  public static logout() {
+  public static async logout() {
     this.token = null;
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('aurelis_jwt_token');
       sessionStorage.removeItem('aurelis_is_authenticated');
       localStorage.removeItem('aurelis_jwt_token');
       localStorage.removeItem('aurelis_is_authenticated');
+    }
+    try {
+      await this.request('/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignore if network or server error during logout
     }
   }
 

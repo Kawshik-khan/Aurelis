@@ -1,5 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../middleware/authMiddleware';
 
 export interface SocketEvent {
   type: string;
@@ -33,6 +35,24 @@ export class SocketService {
           const parsed = JSON.parse(data.toString());
           if (parsed.type === 'IDENTIFY' && parsed.userId) {
             const userId = String(parsed.userId);
+            const token = parsed.token ? String(parsed.token).trim() : null;
+
+            if (token) {
+              try {
+                const decoded = jwt.verify(token, JWT_SECRET) as any;
+                if (!decoded || (decoded.id !== userId && decoded.userId !== userId)) {
+                  ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: 'Token identity mismatch.' }));
+                  return;
+                }
+              } catch {
+                ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: 'Invalid authentication token.' }));
+                return;
+              }
+            } else if (process.env.NODE_ENV === 'production') {
+              ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: 'Authentication token required.' }));
+              return;
+            }
+
             // Associate this ws with the user
             this.socketUserMap.set(ws, userId);
             if (!this.userSockets.has(userId)) {

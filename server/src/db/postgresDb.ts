@@ -72,6 +72,144 @@ export class PostgresDatabaseEngine {
     }
   }
 
+  /**
+   * Pessimistic row-level lock on multiple wallets, sorted by ID to prevent deadlocks.
+   */
+  public async getWalletsForUpdate(
+    client: PoolClient,
+    walletIds: string[]
+  ): Promise<Map<string, WalletEntity>> {
+    if (!walletIds || walletIds.length === 0) return new Map();
+    const uniqueSorted = [...new Set(walletIds)].sort();
+    const res = await client.query(
+      `SELECT * FROM wallets WHERE id = ANY($1::text[]) FOR UPDATE`,
+      [uniqueSorted]
+    );
+    const map = new Map<string, WalletEntity>();
+    for (const row of res.rows) {
+      map.set(row.id, this.mapRowToWallet(row));
+    }
+    return map;
+  }
+
+  /**
+   * Pessimistic row-level lock on a single wallet.
+   */
+  public async getWalletForUpdate(
+    client: PoolClient,
+    walletId: string
+  ): Promise<WalletEntity | undefined> {
+    const res = await client.query(
+      `SELECT * FROM wallets WHERE id = $1 LIMIT 1 FOR UPDATE`,
+      [walletId]
+    );
+    return res.rows[0] ? this.mapRowToWallet(res.rows[0]) : undefined;
+  }
+
+  /**
+   * Atomic wallet balance update inside a transaction.
+   */
+  public async updateWalletBalanceTx(
+    client: PoolClient,
+    walletId: string,
+    balance: number,
+    pendingBalance?: number
+  ): Promise<WalletEntity> {
+    const updatedAt = new Date().toISOString();
+    const res = await client.query(
+      `UPDATE wallets 
+       SET balance = $1, 
+           pending_balance = COALESCE($2, pending_balance),
+           updated_at = $3
+       WHERE id = $4
+       RETURNING *`,
+      [Number(balance), pendingBalance !== undefined ? Number(pendingBalance) : null, updatedAt, walletId]
+    );
+    if (!res.rows[0]) {
+      throw new Error(`Wallet ${walletId} not found during atomic update.`);
+    }
+    return this.mapRowToWallet(res.rows[0]);
+  }
+
+  /**
+   * Atomic transaction record insertion inside a database transaction.
+   */
+  public async insertTransactionTx(client: PoolClient, t: TransactionEntity): Promise<void> {
+    const query = `
+      INSERT INTO transactions (
+        id, user_id, type, amount, currency,
+        source_currency, destination_currency, destination_amount, exchange_rate, fee,
+        total_charged, source_wallet_id, dest_wallet_id, recipient_id, recipient_name,
+        recipient_email, recipient_avatar, recipient_aurelis_tag, sender_name, payment_method,
+        status, date, reference, category, idempotency_key, receipt_signature, created_at
+      ) VALUES (
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15,
+        $16, $17, $18, $19, $20,
+        $21, $22, $23, $24, $25, $26, $27
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        status = EXCLUDED.status,
+        destination_amount = EXCLUDED.destination_amount,
+        receipt_signature = EXCLUDED.receipt_signature
+    `;
+
+    await client.query(query, [
+      t.id,
+      t.userId,
+      t.type,
+      Number(t.amount),
+      t.currency,
+      t.sourceCurrency || null,
+      t.destinationCurrency || null,
+      t.destinationAmount ? Number(t.destinationAmount) : null,
+      t.exchangeRate ? Number(t.exchangeRate) : null,
+      Number(t.fee || 0),
+      Number(t.totalCharged),
+      t.sourceWalletId || null,
+      t.destWalletId || null,
+      t.recipientId || null,
+      t.recipientName || null,
+      t.recipientEmail || null,
+      t.recipientAvatar || null,
+      t.recipientAurelisTag || null,
+      t.senderName || null,
+      t.paymentMethod,
+      t.status || 'Completed',
+      t.date ? new Date(t.date).toISOString() : new Date().toISOString(),
+      t.reference || null,
+      t.category || 'Transfer',
+      t.idempotencyKey || null,
+      t.receiptSignature || null,
+      t.createdAt || new Date().toISOString(),
+    ]);
+  }
+
+  /**
+   * Atomic double-entry ledger insertion inside a database transaction.
+   */
+  public async insertLedgerEntryTx(client: PoolClient, entry: LedgerEntryEntity): Promise<void> {
+    const query = `
+      INSERT INTO ledger_entries (
+        id, transaction_id, wallet_id, entry_type, amount, currency, balance_after, created_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8
+      )
+    `;
+
+    await client.query(query, [
+      entry.id,
+      entry.transactionId,
+      entry.walletId,
+      entry.entryType,
+      Number(entry.amount),
+      entry.currency,
+      Number(entry.balanceAfter),
+      entry.createdAt ? new Date(entry.createdAt).toISOString() : new Date().toISOString(),
+    ]);
+  }
+
   // ==========================================
   // USERS REPOSITORY
   // ==========================================

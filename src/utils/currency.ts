@@ -29,8 +29,8 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyMeta> = {
     code: 'BDT',
     name: 'Bangladeshi Taka',
     symbol: '৳',
-    rateToUSD: 0.008333, // 1 USD = 120.00 BDT
-    decimals: 0,
+    rateToUSD: 0.008333333333333333, // 1 USD = 120.00 BDT
+    decimals: 2,
     country: 'Bangladesh',
   },
   CHF: {

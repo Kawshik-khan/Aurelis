@@ -91,10 +91,6 @@ export class FXController {
       await db.wallets.set(toWallet.id, toWallet);
     }
 
-    // Atomic Dual-Wallet Update
-    fromWallet.balance = Number((fromWallet.balance - parsedFrom).toFixed(4));
-    toWallet.balance = Number((toWallet.balance + toAmount).toFixed(4));
-
     const txnId = TransferService.generateTxnId();
     const txn = {
       id: txnId,
@@ -110,38 +106,69 @@ export class FXController {
       totalCharged: parsedFrom,
       sourceWalletId: fromWallet.id,
       destWalletId: toWallet.id,
-      recipientName: `AURELIS ${toCurrency} Wallet`,
+      recipientName: `DBS Bank ${toCurrency} Wallet`,
       paymentMethod: 'Internal Treasury Exchange',
       status: 'Completed' as const,
       date: new Date().toISOString(),
       reference: `FX Conversion ${fromCurrency} → ${toCurrency}`,
       category: 'Exchange',
-      receiptSignature: `AURELIS_FX_SHA256_${txnId}_SIG_VALID`,
+      receiptSignature: `DBS_FX_SHA256_${txnId}_SIG_VALID`,
     };
 
-    await db.transactions.set(txn.id, txn);
-    await db.wallets.set(fromWallet.id, fromWallet);
-    await db.wallets.set(toWallet.id, toWallet);
+    let freshFromWallet: WalletEntity = fromWallet;
+    let freshToWallet: WalletEntity = toWallet;
+
+    try {
+      await db.engine.transaction(async (client) => {
+        const lockedMap = await db.engine.getWalletsForUpdate(client, [fromWallet.id, toWallet.id]);
+        const lockedFrom = lockedMap.get(fromWallet.id);
+        const lockedTo = lockedMap.get(toWallet.id);
+
+        if (!lockedFrom || !lockedTo) {
+          throw new Error('Could not acquire lock on exchange wallets.');
+        }
+
+        if (Number(lockedFrom.balance) < parsedFrom) {
+          throw new Error(`Insufficient funds in ${fromCurrency} wallet.`);
+        }
+
+        const fromBalanceAfter = Number((Number(lockedFrom.balance) - parsedFrom).toFixed(4));
+        const toBalanceAfter = Number((Number(lockedTo.balance) + toAmount).toFixed(4));
+
+        freshFromWallet = await db.engine.updateWalletBalanceTx(client, lockedFrom.id, fromBalanceAfter);
+        freshToWallet = await db.engine.updateWalletBalanceTx(client, lockedTo.id, toBalanceAfter);
+
+        await db.engine.insertTransactionTx(client, txn as any);
+
+        await db.engine.insertLedgerEntryTx(client, {
+          id: `led_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          transactionId: txn.id,
+          walletId: fromWallet.id,
+          entryType: 'DEBIT',
+          amount: parsedFrom,
+          currency: fromCurrency,
+          balanceAfter: fromBalanceAfter,
+          createdAt: new Date().toISOString(),
+        });
+
+        await db.engine.insertLedgerEntryTx(client, {
+          id: `led_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          transactionId: txn.id,
+          walletId: toWallet.id,
+          entryType: 'CREDIT',
+          amount: toAmount,
+          currency: toCurrency,
+          balanceAfter: toBalanceAfter,
+          createdAt: new Date().toISOString(),
+        });
+      });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message || 'Currency conversion failed.' });
+    }
+
+    fromWallet = freshFromWallet;
+    toWallet = freshToWallet;
     db.saveToFile();
-
-    // Record Double-Entry Ledger
-    await LedgerService.recordEntry({
-      transactionId: txn.id,
-      walletId: fromWallet.id,
-      entryType: 'DEBIT',
-      amount: parsedFrom,
-      currency: fromCurrency,
-      balanceAfter: fromWallet.balance,
-    });
-
-    await LedgerService.recordEntry({
-      transactionId: txn.id,
-      walletId: toWallet.id,
-      entryType: 'CREDIT',
-      amount: toAmount,
-      currency: toCurrency,
-      balanceAfter: toWallet.balance,
-    });
 
     try {
       SocketService.broadcastToUser(userId, {

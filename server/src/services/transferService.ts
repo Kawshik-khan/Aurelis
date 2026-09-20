@@ -122,23 +122,43 @@ export class TransferService {
     const feeInUSD = 0.00; // Zero fee for verified peer sovereign transfers
     const feeInSource = feeInUSD; // In USD equivalent
     const totalCharged = params.amount + feeInSource;
-
-    if (sourceWallet.balance < totalCharged) {
-      throw new Error(
-        `Insufficient funds in ${params.sourceCurrency} wallet. Balance: ${sourceWallet.balance.toFixed(2)}, Required: ${totalCharged.toFixed(2)}`
-      );
-    }
-
     const exchangeRate = FXService.getRate(params.sourceCurrency, params.destinationCurrency);
     const destinationAmount = params.amount * exchangeRate;
-
-    // 3. Atomically Deduct Balance from Sender
-    sourceWallet.balance = Number((sourceWallet.balance - totalCharged).toFixed(4));
-    sourceWallet.updatedAt = new Date().toISOString();
-
-    // 4. Generate Primary Transaction Entity & Persist to Database
     const txnId = this.generateTxnId();
 
+    // 2. Prepare recipient wallet entity if internal DBS Bank recipient
+    let recipientWalletId: string | undefined;
+    if (recipientUser && recipientUser.id !== params.userId) {
+      const recWallets = await db.wallets.findByUser(recipientUser.id);
+      let targetRecWallet = recWallets.find((w) => w.currency === params.destinationCurrency);
+
+      if (!targetRecWallet) {
+        const newWalletId = `w_${params.destinationCurrency.toLowerCase()}_${Date.now()}`;
+        targetRecWallet = {
+          id: newWalletId,
+          userId: recipientUser.id,
+          currency: params.destinationCurrency,
+          balance: 0,
+          pendingBalance: 0,
+          accountNumber: `DBS ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`,
+          iban: `BD89 DBSB ${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+          bic: 'DBSBBDDHXXX',
+          isPrimary: false,
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await db.wallets.set(newWalletId, targetRecWallet);
+      }
+      recipientWalletId = targetRecWallet.id;
+    }
+
+    const walletIdsToLock = [sourceWallet.id];
+    if (recipientWalletId) {
+      walletIdsToLock.push(recipientWalletId);
+    }
+
+    // 3. Prepare Sender Transaction Entity
     const newTxn: TransactionEntity = {
       id: txnId,
       userId: params.userId,
@@ -166,54 +186,11 @@ export class TransferService {
       receiptSignature: `DBS_BANK_SHA256_${txnId}_SIG_VALID`,
     };
 
-    // Save transaction and updated source wallet
-    await db.transactions.set(newTxn.id, newTxn);
-    await db.wallets.set(sourceWallet.id, sourceWallet);
-
-    // 5. Write Immutable Double-Entry Ledger Record for Sender
-    await LedgerService.recordEntry({
-      transactionId: newTxn.id,
-      walletId: sourceWallet.id,
-      entryType: 'DEBIT',
-      amount: totalCharged,
-      currency: params.sourceCurrency,
-      balanceAfter: sourceWallet.balance,
-    });
-
-    // 6. If recipient is an internal DBS Bank user, credit their wallet & record ledger/transaction
-    let recipientWallet: WalletEntity | undefined;
+    // 4. Prepare Recipient Transaction Entity if applicable
     let receiveTxn: TransactionEntity | undefined;
-    if (recipientUser && recipientUser.id !== params.userId) {
-      const recWallets = await db.wallets.findByUser(recipientUser.id);
-      recipientWallet = recWallets.find((w) => w.currency === params.destinationCurrency);
-
-      if (!recipientWallet) {
-        const newWalletId = `w_${params.destinationCurrency.toLowerCase()}_${Date.now()}`;
-        recipientWallet = {
-          id: newWalletId,
-          userId: recipientUser.id,
-          currency: params.destinationCurrency,
-          balance: 0,
-          pendingBalance: 0,
-          accountNumber: `DBS ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`,
-          iban: `BD89 DBSB ${Math.floor(100000000000 + Math.random() * 900000000000)}`,
-          bic: 'DBSBBDDHXXX',
-          isPrimary: false,
-          status: 'ACTIVE',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        await db.wallets.set(newWalletId, recipientWallet);
-      }
-
-      recipientWallet.balance = Number((recipientWallet.balance + destinationAmount).toFixed(4));
-      recipientWallet.updatedAt = new Date().toISOString();
-      await db.wallets.set(recipientWallet.id, recipientWallet);
-
-      // Record incoming transaction for recipient
-      const recTxnId = `${txnId}_REC`;
+    if (recipientUser && recipientUser.id !== params.userId && recipientWalletId) {
       receiveTxn = {
-        id: recTxnId,
+        id: `${txnId}_REC`,
         userId: recipientUser.id,
         type: 'receive',
         amount: destinationAmount,
@@ -224,6 +201,8 @@ export class TransferService {
         exchangeRate,
         fee: 0,
         totalCharged: 0,
+        sourceWalletId: sourceWallet.id,
+        destWalletId: recipientWalletId,
         senderName: senderUser ? senderUser.fullName : 'DBS Bank Customer',
         recipientName: recipientUser.fullName,
         recipientEmail: recipientUser.email,
@@ -234,18 +213,81 @@ export class TransferService {
         category: 'Transfer',
         receiptSignature: `DBS_BANK_RECEIVE_${txnId}`,
       };
-      await db.transactions.set(receiveTxn.id, receiveTxn);
+    }
 
-      // Record CREDIT entry in ledger referencing receiveTxn
-      await LedgerService.recordEntry({
-        transactionId: receiveTxn.id,
-        walletId: recipientWallet.id,
-        entryType: 'CREDIT',
-        amount: destinationAmount,
-        currency: params.destinationCurrency,
-        balanceAfter: recipientWallet.balance,
+    // =========================================================================
+    // 5. ATOMIC EXECUTION WITH PESSIMISTIC ROW LOCKS (FOR UPDATE) & DOUBLE-ENTRY
+    // =========================================================================
+    let sourceWalletFresh: WalletEntity = sourceWallet;
+    let recipientWalletFresh: WalletEntity | undefined;
+
+    await db.engine.transaction(async (client) => {
+      // 5a. Acquire pessimistic row locks on all involved wallets
+      const lockedMap = await db.engine.getWalletsForUpdate(client, walletIdsToLock);
+      const lockedSource = lockedMap.get(sourceWallet.id);
+      if (!lockedSource) {
+        throw new Error(`Source wallet ${sourceWallet.id} could not be locked for settlement.`);
+      }
+
+      // 5b. Strict in-lock balance check (eliminates race condition double-spending)
+      if (Number(lockedSource.balance) < totalCharged) {
+        throw new Error(
+          `Insufficient funds in ${params.sourceCurrency} wallet. Balance: ${Number(lockedSource.balance).toFixed(2)}, Required: ${totalCharged.toFixed(2)}`
+        );
+      }
+
+      const senderBalanceAfter = Number((Number(lockedSource.balance) - totalCharged).toFixed(4));
+      sourceWalletFresh = await db.engine.updateWalletBalanceTx(
+        client,
+        lockedSource.id,
+        senderBalanceAfter
+      );
+
+      // 5c. Persist sender transaction & double-entry DEBIT ledger
+      await db.engine.insertTransactionTx(client, newTxn);
+      await db.engine.insertLedgerEntryTx(client, {
+        id: `led_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        transactionId: newTxn.id,
+        walletId: lockedSource.id,
+        entryType: 'DEBIT',
+        amount: totalCharged,
+        currency: params.sourceCurrency,
+        balanceAfter: senderBalanceAfter,
+        createdAt: new Date().toISOString(),
       });
 
+      // 5d. Credit recipient wallet & persist receive transaction + double-entry CREDIT ledger
+      if (recipientWalletId && receiveTxn) {
+        const lockedRec = lockedMap.get(recipientWalletId);
+        if (!lockedRec) {
+          throw new Error(`Recipient wallet ${recipientWalletId} could not be locked for settlement.`);
+        }
+
+        const recBalanceAfter = Number((Number(lockedRec.balance) + destinationAmount).toFixed(4));
+        recipientWalletFresh = await db.engine.updateWalletBalanceTx(
+          client,
+          lockedRec.id,
+          recBalanceAfter
+        );
+
+        await db.engine.insertTransactionTx(client, receiveTxn);
+        await db.engine.insertLedgerEntryTx(client, {
+          id: `led_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          transactionId: receiveTxn.id,
+          walletId: lockedRec.id,
+          entryType: 'CREDIT',
+          amount: destinationAmount,
+          currency: params.destinationCurrency,
+          balanceAfter: recBalanceAfter,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    });
+
+    // Update local references to fresh committed state
+    let recipientWallet: WalletEntity | undefined = recipientWalletFresh;
+
+    if (recipientUser && recipientUser.id !== params.userId && receiveTxn) {
       // Add notification for recipient
       const recNotifId = `notif_${Date.now()}_rec`;
       await db.notifications.set(recNotifId, {
@@ -314,7 +356,7 @@ export class TransferService {
       // Notify sender
       SocketService.broadcastToUser(params.userId, {
         type: 'WALLET_UPDATED',
-        payload: sourceWallet,
+        payload: sourceWalletFresh,
       });
       SocketService.broadcastToUser(params.userId, {
         type: 'TRANSACTION_CREATED',
@@ -365,7 +407,7 @@ export class TransferService {
       // 10. Dispatch Email and Mobile SMS alerts to sender
       if (senderUser) {
         NotificationDispatchService.dispatchTransactionAlerts(newTxn, senderUser, {
-          walletBalance: sourceWallet.balance,
+          walletBalance: sourceWalletFresh.balance,
           currency: params.sourceCurrency,
           counterpartyName: recipientUser?.phone || newTxn.recipientName,
           counterpartyEmail: newTxn.recipientEmail,
