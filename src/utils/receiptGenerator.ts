@@ -23,7 +23,7 @@ export function printReceipt(txn: Transaction) {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Receipt — ${txn.id} — AURELIS</title>
+        <title>Receipt — ${txn.id} — DBS Bank</title>
         <meta charset="utf-8" />
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -56,18 +56,19 @@ export function printReceipt(txn: Transaction) {
             margin-bottom: 32px;
           }
           .brand-title {
-            font-family: 'Playfair Display', serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             font-size: 24px;
-            letter-spacing: 0.15em;
-            color: #123C32;
+            letter-spacing: 0.05em;
+            color: #E60000;
             text-transform: uppercase;
-            font-weight: 700;
+            font-weight: 800;
           }
           .brand-subtitle {
             font-size: 11px;
             color: #6F6F6A;
             letter-spacing: 0.05em;
             margin-top: 4px;
+            font-weight: 600;
           }
           .status-badge {
             background: #EAF1ED;
@@ -95,9 +96,9 @@ export function printReceipt(txn: Transaction) {
             margin-bottom: 6px;
           }
           .amount-value {
-            font-family: 'Playfair Display', serif;
-            font-size: 38px;
-            font-weight: 700;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 36px;
+            font-weight: 800;
             color: #111111;
           }
           .row {
@@ -130,18 +131,18 @@ export function printReceipt(txn: Transaction) {
           }
           .seal {
             margin: 20px auto 0;
-            width: 44px;
-            height: 44px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
-            border: 1px solid #B69A62;
-            color: #B69A62;
+            border: 2px solid #E60000;
+            color: #E60000;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Playfair Display', serif;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.1em;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.05em;
           }
         </style>
       </head>
@@ -149,8 +150,8 @@ export function printReceipt(txn: Transaction) {
         <div class="receipt-box">
           <div class="header">
             <div>
-              <div class="brand-title">AURELIS</div>
-              <div class="brand-subtitle">PRIVATE WEALTH & GLOBAL TRANSFERS</div>
+              <div class="brand-title">DBS BANK</div>
+              <div class="brand-subtitle">DIGITAL BANKING BANGLADESH</div>
             </div>
             <div class="status-badge">${txn.status}</div>
           </div>
@@ -207,7 +208,7 @@ export function printReceipt(txn: Transaction) {
             ` : ''}
             <div class="row">
               <span class="row-label">Network / Transfer Fee</span>
-              <span class="row-val">${txn.fee === 0 ? 'Complimentary ($0.00)' : formatCurrency(txn.fee, txn.currency)}</span>
+              <span class="row-val">${txn.fee === 0 ? 'Complimentary (Tk 0.00)' : formatCurrency(txn.fee, txn.currency)}</span>
             </div>
             ${txn.reference ? `
             <div class="row">
@@ -217,14 +218,14 @@ export function printReceipt(txn: Transaction) {
             ` : ''}
             <div class="row" style="border-bottom: none; padding-top: 16px;">
               <span class="row-label" style="font-weight: 600; color: #111111;">Total Debited</span>
-              <span class="row-val" style="font-weight: 700; font-size: 16px; color: #123C32;">${formatCurrency(txn.totalCharged || txn.amount, txn.currency, { showCode: true })}</span>
+              <span class="row-val" style="font-weight: 700; font-size: 16px; color: #E60000;">${formatCurrency(txn.totalCharged || txn.amount, txn.currency, { showCode: true })}</span>
             </div>
           </div>
 
           <div class="footer">
-            <div class="seal">A</div>
-            <p style="margin-top: 14px;">This official electronic receipt is issued by AURELIS Global Private Wealth Systems.</p>
-            <p>Cryptographically verified and archived in client permanent vault records.</p>
+            <div class="seal">DBS</div>
+            <p style="margin-top: 14px;">This official electronic receipt is issued by DBS Bank (Bangladesh) Digital Banking Systems.</p>
+            <p>Regulated under Bangladesh Bank guidelines • Archived in secure banking records.</p>
           </div>
         </div>
         <script>
@@ -247,7 +248,7 @@ export function downloadReceiptJson(txn: Transaction) {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(txn, null, 2));
   const downloadAnchor = document.createElement('a');
   downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", `AURELIS-Receipt-${txn.id}.json`);
+  downloadAnchor.setAttribute("download", `DBS-Receipt-${txn.id}.json`);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();

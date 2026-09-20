@@ -81,7 +81,7 @@ export const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
           />
           <Input
             label="Phone Number (Optional)"
-            placeholder="+41 22 700 8000"
+            placeholder="+880 1700-000000"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
@@ -94,16 +94,16 @@ export const AddRecipientModal: React.FC<AddRecipientModalProps> = ({
             onChange={setCurrency}
           />
           <Input
-            label="Aurelis Tag (Optional)"
-            placeholder="@julian.hastings"
+            label="DBS Tag (Optional)"
+            placeholder="@dbs_user"
             value={aurelisTag}
             onChange={(e) => setAurelisTag(e.target.value)}
           />
         </div>
 
         <Input
-          label="Financial Institution"
-          placeholder="e.g. Lombard Odier / J.P. Morgan"
+          label="Financial Institution / MFS"
+          placeholder="e.g. BRAC Bank / bKash / City Bank"
           value={bankName}
           onChange={(e) => setBankName(e.target.value)}
         />

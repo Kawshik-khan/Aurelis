@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import {
   CardItem,
   CurrencyCode,
+  DispatchedAlert,
   NavigationTab,
   NotificationItem,
   Recipient,
@@ -32,9 +33,10 @@ interface AppContextType {
   registerUser: (data: {
     name: string;
     email: string;
+    phone?: string;
     country?: string;
     currency?: CurrencyCode;
-    tier?: 'Private Wealth Sovereign' | 'Private Client' | 'Signature Elite';
+    tier?: string;
     password?: string;
   }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -92,6 +94,29 @@ interface AppContextType {
   markAllNotificationsRead: () => Promise<void> | void;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
   resetDemoData: () => void;
+
+  // Multi-Channel Transaction Alerts & Toasts
+  dispatchedAlerts: DispatchedAlert[];
+  loadDispatchedAlerts: (channel?: 'all' | 'email' | 'sms') => Promise<void>;
+  selectedAlert: DispatchedAlert | null;
+  openAlertPreview: (alert: DispatchedAlert) => void;
+  closeAlertPreview: () => void;
+  activeToasts: LiveToastAlert[];
+  addToast: (toast: Omit<LiveToastAlert, 'id' | 'timestamp'>) => void;
+  dismissToast: (id: string) => void;
+  triggerTestAlert: (type?: string, amount?: number, currency?: CurrencyCode) => Promise<any>;
+  updateAlertPreferences: (prefs: { emailAlertsEnabled?: boolean; smsAlertsEnabled?: boolean; phone?: string }) => Promise<any>;
+}
+
+export interface LiveToastAlert {
+  id: string;
+  channel: 'EMAIL' | 'SMS' | 'SYSTEM';
+  title: string;
+  message: string;
+  recipient?: string;
+  timestamp: string;
+  alert?: DispatchedAlert;
+  transactionId?: string;
 }
 
 
@@ -258,6 +283,103 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [modalPayload, setModalPayload] = useState<any>(null);
+
+  // Multi-Channel Dispatched Alerts & Real-Time Toasts
+  const [dispatchedAlerts, setDispatchedAlerts] = useState<DispatchedAlert[]>([]);
+  const [selectedAlert, setSelectedAlert] = useState<DispatchedAlert | null>(null);
+  const [activeToasts, setActiveToasts] = useState<LiveToastAlert[]>([]);
+
+  const addToast = useCallback((toast: Omit<LiveToastAlert, 'id' | 'timestamp'>) => {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newToast: LiveToastAlert = {
+      ...toast,
+      id,
+      timestamp: new Date().toISOString(),
+    };
+    setActiveToasts((prev) => [newToast, ...prev.slice(0, 3)]);
+    setTimeout(() => {
+      setActiveToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 7000);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setActiveToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const openAlertPreview = useCallback((alert: DispatchedAlert) => {
+    setSelectedAlert(alert);
+  }, []);
+
+  const closeAlertPreview = useCallback(() => {
+    setSelectedAlert(null);
+  }, []);
+
+  const loadDispatchedAlerts = useCallback(async (channel?: 'all' | 'email' | 'sms') => {
+    try {
+      const res = await AurelisApiClient.getDispatchedAlerts(channel);
+      if (res?.alerts) {
+        setDispatchedAlerts(res.alerts);
+      }
+    } catch (err) {
+      console.warn('Load dispatched alerts note:', err);
+    }
+  }, []);
+
+  const updateAlertPreferences = useCallback(async (prefs: { emailAlertsEnabled?: boolean; smsAlertsEnabled?: boolean; phone?: string }) => {
+    try {
+      const res = await AurelisApiClient.updateAlertPreferences(prefs);
+      if (res?.preferences) {
+        setUser((prev) => ({
+          ...prev,
+          emailAlertsEnabled: res.preferences.emailAlertsEnabled,
+          smsAlertsEnabled: res.preferences.smsAlertsEnabled,
+          phone: res.preferences.phone !== undefined ? res.preferences.phone : prev.phone,
+        }));
+      }
+      return res;
+    } catch (err) {
+      console.warn('Update alert preferences error:', err);
+      throw err;
+    }
+  }, []);
+
+  const triggerTestAlert = useCallback(async (type?: string, amount?: number, currency?: CurrencyCode) => {
+    try {
+      const res = await AurelisApiClient.triggerTestAlert({
+        type,
+        amount,
+        currency,
+      });
+      if (res?.alerts) {
+        if (res.alerts.smsAlert) {
+          setDispatchedAlerts((prev) => [res.alerts.smsAlert!, ...prev]);
+          addToast({
+            channel: 'SMS',
+            title: '📱 Mobile SMS Alert Received',
+            message: res.alerts.smsAlert.bodyText,
+            recipient: res.alerts.smsAlert.recipient,
+            alert: res.alerts.smsAlert,
+            transactionId: res.alerts.smsAlert.transactionId,
+          });
+        }
+        if (res.alerts.emailAlert) {
+          setDispatchedAlerts((prev) => [res.alerts.emailAlert!, ...prev]);
+          addToast({
+            channel: 'EMAIL',
+            title: '✉️ Email Receipt Dispatched',
+            message: res.alerts.emailAlert.subject,
+            recipient: res.alerts.emailAlert.recipient,
+            alert: res.alerts.emailAlert,
+            transactionId: res.alerts.emailAlert.transactionId,
+          });
+        }
+      }
+      return res;
+    } catch (err) {
+      console.warn('Trigger test alert error:', err);
+      throw err;
+    }
+  }, [addToast]);
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
 
   // Validate token on startup and refresh user profile, wallets, transactions, and recipients from backend only if an active session exists
@@ -281,7 +403,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             email: profileRes.user.email,
             name: profileRes.user.name || (profileRes.user as any).fullName || user.name,
             aurelisTag: profileRes.user.aurelisTag || user.aurelisTag,
-            tier: profileRes.user.tier || user.tier,
+            tier: profileRes.user.tier,
             avatar: profileRes.user.avatar || user.avatar,
             primaryCurrency: (profileRes.user as any).baseCurrency || 'USD',
             transactionPin: profileRes.user.transactionPin || (profileRes.user as any).pin || user.transactionPin || '1234',
@@ -372,13 +494,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .catch(() => {});
     });
 
+    const unsubAlert = socket.on('ALERT_DISPATCHED', (payload: any) => {
+      if (!payload) return;
+      if (payload.smsAlert) {
+        setDispatchedAlerts((prev) => [payload.smsAlert, ...prev.filter((a) => a.id !== payload.smsAlert.id)]);
+        addToast({
+          channel: 'SMS',
+          title: '📱 Mobile SMS Alert Received',
+          message: payload.smsAlert.bodyText,
+          recipient: payload.smsAlert.recipient,
+          alert: payload.smsAlert,
+          transactionId: payload.transactionId,
+        });
+      }
+      if (payload.emailAlert) {
+        setDispatchedAlerts((prev) => [payload.emailAlert, ...prev.filter((a) => a.id !== payload.emailAlert.id)]);
+        addToast({
+          channel: 'EMAIL',
+          title: '✉️ Email Receipt Dispatched',
+          message: payload.emailAlert.subject,
+          recipient: payload.emailAlert.recipient,
+          alert: payload.emailAlert,
+          transactionId: payload.transactionId,
+        });
+      }
+    });
+
+    const unsubEmail = socket.on('EMAIL_DISPATCHED', (payload: any) => {
+      if (!payload?.id) return;
+      setDispatchedAlerts((prev) => [payload, ...prev.filter((a) => a.id !== payload.id)]);
+      addToast({
+        channel: 'EMAIL',
+        title: '✉️ Email Receipt Dispatched',
+        message: payload.subject,
+        recipient: payload.recipient,
+        alert: payload,
+        transactionId: payload.transactionId,
+      });
+    });
+
+    const unsubSms = socket.on('SMS_DISPATCHED', (payload: any) => {
+      if (!payload?.id) return;
+      setDispatchedAlerts((prev) => [payload, ...prev.filter((a) => a.id !== payload.id)]);
+      addToast({
+        channel: 'SMS',
+        title: '📱 Mobile SMS Alert Received',
+        message: payload.bodyText,
+        recipient: payload.recipient,
+        alert: payload,
+        transactionId: payload.transactionId,
+      });
+    });
+
+    // Initial alert fetch
+    loadDispatchedAlerts();
+
     return () => {
       unsubWallet();
       unsubTxn();
       unsubNotif();
       unsubRecs();
+      unsubAlert();
+      unsubEmail();
+      unsubSms();
     };
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, addToast, loadDispatchedAlerts]);
 
 
   // Sync to user-scoped localStorage
@@ -1030,7 +1210,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: res.user.email,
         name: res.user.name || (res.user as any).fullName || email.split('@')[0],
         aurelisTag: res.user.aurelisTag || `@${email.split('@')[0]}`,
-        tier: res.user.tier || 'Private Client',
+        tier: res.user.tier,
         avatar: res.user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
         primaryCurrency: (res.user as any).baseCurrency || 'USD',
       };
@@ -1066,7 +1246,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           email: res.user.email,
           name: res.user.name || (res.user as any).fullName || 'Alex Morgan',
           aurelisTag: res.user.aurelisTag || '@alex.morgan',
-          tier: res.user.tier || 'Private Wealth Sovereign',
+          tier: res.user.tier,
           avatar: res.user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
           primaryCurrency: (res.user as any).baseCurrency || 'USD',
         };
@@ -1094,15 +1274,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const registerUser = async (data: {
     name: string;
     email: string;
+    phone?: string;
     country?: string;
     currency?: CurrencyCode;
-    tier?: 'Private Wealth Sovereign' | 'Private Client' | 'Signature Elite';
+    tier?: string;
     password?: string;
   }): Promise<{ success: boolean; error?: string }> => {
     try {
       const apiRes = await AurelisApiClient.register({
         email: data.email,
         fullName: data.name,
+        phone: data.phone,
         country: data.country || 'Switzerland',
         baseCurrency: data.currency || 'USD',
         password: data.password,
@@ -1117,8 +1299,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: apiRes.user.id,
         name: apiRes.user.name || (apiRes.user as any).fullName || data.name,
         email: apiRes.user.email || data.email,
+        phone: apiRes.user.phone || data.phone || '',
         aurelisTag: apiRes.user.aurelisTag || `@${data.name.toLowerCase().replace(/\s+/g, '.')}`,
-        tier: apiRes.user.tier || data.tier || 'Private Client',
+        tier: apiRes.user.tier || data.tier,
         primaryCurrency: (apiRes.user as any).baseCurrency || data.currency || 'USD',
         address: {
           ...INITIAL_USER.address,
@@ -1261,6 +1444,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateTransactionPin,
         resetDemoData,
         prefillSendModal,
+
+        // Dispatched Alerts & Toasts
+        dispatchedAlerts,
+        loadDispatchedAlerts,
+        selectedAlert,
+        openAlertPreview,
+        closeAlertPreview,
+        activeToasts,
+        addToast,
+        dismissToast,
+        triggerTestAlert,
+        updateAlertPreferences,
       }}
     >
       {children}

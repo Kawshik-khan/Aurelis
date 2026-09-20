@@ -55,8 +55,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `AURELIS Transaction ${txn.id}`,
-        text: `Transaction ${txn.id} for ${formatCurrency(txn.amount, txn.currency)} settled via AURELIS.`,
+        title: `DBS Bank Transaction ${txn.id}`,
+        text: `Transaction ${txn.id} for ${formatCurrency(txn.amount, txn.currency)} settled via DBS Bank.`,
         url: window.location.href,
       }).catch(() => {});
     } else {

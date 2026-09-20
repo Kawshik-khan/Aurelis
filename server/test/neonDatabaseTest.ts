@@ -134,6 +134,8 @@ async function runDatabaseTestSuite() {
 
     if (failed > 0) {
       process.exit(1);
+    } else {
+      process.exit(0);
     }
   } catch (err) {
     console.error(`\n${colors.red}Test suite error:${colors.reset}`, err);

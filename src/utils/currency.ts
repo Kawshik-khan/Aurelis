@@ -131,7 +131,7 @@ export function calculateTransferQuote(
   const rate = getExchangeRate(safeFrom, safeTo);
   const converted = safeAmount * rate;
   
-  // Luxury pricing: zero transfer fees for Aurelis peer transfers, flat $4.99 for swift wires
+  // Zero transfer fees for DBS Bank peer transfers, flat $4.99 for swift wires
   const feeInUSD = isAurelisPeer ? 0 : 4.99;
   const fromRate = (CURRENCIES[safeFrom] || CURRENCIES.USD).rateToUSD || 1.0;
   const feeInFromCurrency = feeInUSD / fromRate;

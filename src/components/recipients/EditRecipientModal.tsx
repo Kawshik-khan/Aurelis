@@ -97,7 +97,7 @@ export const EditRecipientModal: React.FC<EditRecipientModalProps> = ({
             onChange={setCurrency}
           />
           <Input
-            label="Aurelis Tag"
+            label="DBS Tag"
             value={aurelisTag}
             onChange={(e) => setAurelisTag(e.target.value)}
           />

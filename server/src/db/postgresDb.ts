@@ -1,6 +1,7 @@
 import { Pool, PoolClient } from 'pg';
 import {
   CardEntity,
+  DispatchedAlertEntity,
   FXRateLock,
   LedgerEntryEntity,
   NotificationEntity,
@@ -112,31 +113,42 @@ export class PostgresDatabaseEngine {
       await this.init();
       const query = `
         INSERT INTO users (
-          id, email, password_hash, full_name, phone, aurelis_tag,
-          tier, base_currency, avatar, two_factor_enabled, two_factor_secret,
-          biometric_enabled, passkey_enabled, address, transaction_pin,
+          id, email, password_hash, full_name, phone, phone_number, aurelis_tag, dbs_tag,
+          tier, base_currency, avatar, avatar_url, two_factor_enabled, two_factor_secret,
+          biometric_enabled, passkey_enabled, address, street_address, city, country, postal_code,
+          transaction_pin, email_alerts_enabled, sms_alerts_enabled,
           created_at, updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6,
-          $7, $8, $9, $10, $11,
-          $12, $13, $14, $15,
-          $16, $17
+          $1, $2, $3, $4, $5, $6, $7, $8,
+          $9, $10, $11, $12, $13, $14,
+          $15, $16, $17, $18, $19, $20, $21,
+          $22, $23, $24,
+          $25, $26
         )
         ON CONFLICT(id) DO UPDATE SET
           email = EXCLUDED.email,
           password_hash = EXCLUDED.password_hash,
           full_name = EXCLUDED.full_name,
           phone = EXCLUDED.phone,
+          phone_number = EXCLUDED.phone_number,
           aurelis_tag = EXCLUDED.aurelis_tag,
+          dbs_tag = EXCLUDED.dbs_tag,
           tier = EXCLUDED.tier,
           base_currency = EXCLUDED.base_currency,
           avatar = EXCLUDED.avatar,
+          avatar_url = EXCLUDED.avatar_url,
           two_factor_enabled = EXCLUDED.two_factor_enabled,
           two_factor_secret = EXCLUDED.two_factor_secret,
           biometric_enabled = EXCLUDED.biometric_enabled,
           passkey_enabled = EXCLUDED.passkey_enabled,
           address = EXCLUDED.address,
+          street_address = EXCLUDED.street_address,
+          city = EXCLUDED.city,
+          country = EXCLUDED.country,
+          postal_code = EXCLUDED.postal_code,
           transaction_pin = EXCLUDED.transaction_pin,
+          email_alerts_enabled = EXCLUDED.email_alerts_enabled,
+          sms_alerts_enabled = EXCLUDED.sms_alerts_enabled,
           updated_at = EXCLUDED.updated_at
       `;
 
@@ -146,16 +158,25 @@ export class PostgresDatabaseEngine {
         user.passwordHash,
         user.fullName,
         user.phone || null,
+        user.phone || null,
         user.aurelisTag,
-        user.tier || 'Private Client',
-        user.baseCurrency || 'USD',
+        user.aurelisTag,
+        user.tier || null,
+        user.baseCurrency || 'BDT',
+        user.avatar || null,
         user.avatar || null,
         Boolean(user.twoFactorEnabled),
         user.twoFactorSecret || null,
         Boolean(user.biometricEnabled),
         Boolean(user.passkeyEnabled),
         user.address ? JSON.stringify(user.address) : null,
+        user.address?.street || null,
+        user.address?.city || null,
+        user.address?.country || null,
+        user.address?.postalCode || null,
         user.transactionPin || '1234',
+        user.emailAlertsEnabled !== false,
+        user.smsAlertsEnabled !== false,
         user.createdAt || new Date().toISOString(),
         user.updatedAt || new Date().toISOString(),
       ]);
@@ -188,6 +209,13 @@ export class PostgresDatabaseEngine {
       } catch {
         // ignore
       }
+    } else if (row.street_address || row.city || row.country || row.postal_code) {
+      address = {
+        street: row.street_address || '',
+        city: row.city || '',
+        country: row.country || '',
+        postalCode: row.postal_code || '',
+      };
     }
 
     return {
@@ -195,17 +223,19 @@ export class PostgresDatabaseEngine {
       email: row.email,
       passwordHash: row.password_hash,
       fullName: row.full_name,
-      phone: row.phone || '',
-      aurelisTag: row.aurelis_tag,
-      tier: row.tier,
-      baseCurrency: row.base_currency,
-      avatar: row.avatar || '',
+      phone: row.phone || row.phone_number || '',
+      aurelisTag: row.dbs_tag || row.aurelis_tag || '',
+      tier: row.tier || undefined,
+      baseCurrency: row.base_currency || 'BDT',
+      avatar: row.avatar || row.avatar_url || '',
       twoFactorEnabled: Boolean(row.two_factor_enabled),
       twoFactorSecret: row.two_factor_secret || undefined,
       biometricEnabled: Boolean(row.biometric_enabled),
       passkeyEnabled: Boolean(row.passkey_enabled),
       address,
       transactionPin: row.transaction_pin || '1234',
+      emailAlertsEnabled: row.email_alerts_enabled !== false,
+      smsAlertsEnabled: row.sms_alerts_enabled !== false,
       createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
       updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
     };
@@ -706,6 +736,7 @@ export class PostgresDatabaseEngine {
       timestamp: row.timestamp ? String(row.timestamp) : new Date().toISOString(),
       isRead: Boolean(row.is_read),
       linkedTxnId: row.linked_txn_id || undefined,
+      createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
     };
   }
 
@@ -920,4 +951,88 @@ export class PostgresDatabaseEngine {
       await this.pool.query(query, [key, Number(data.status), data.body, Date.now()]);
     },
   };
+
+  // ==========================================
+  // DISPATCHED ALERTS REPOSITORY (EMAIL & SMS)
+  // ==========================================
+  public dispatchedAlerts = {
+    get: async (id: string): Promise<DispatchedAlertEntity | undefined> => {
+      await this.init();
+      const res = await this.pool.query('SELECT * FROM dispatched_alerts WHERE id = $1 LIMIT 1', [id]);
+      return res.rows[0] ? this.mapRowToDispatchedAlert(res.rows[0]) : undefined;
+    },
+
+    set: async (id: string, alert: DispatchedAlertEntity): Promise<void> => {
+      await this.init();
+      const query = `
+        INSERT INTO dispatched_alerts (
+          id, user_id, transaction_id, channel, recipient, subject, body_text, body_html, status, created_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+        )
+        ON CONFLICT(id) DO UPDATE SET
+          status = EXCLUDED.status,
+          body_text = EXCLUDED.body_text,
+          body_html = EXCLUDED.body_html
+      `;
+      await this.pool.query(query, [
+        alert.id,
+        alert.userId,
+        alert.transactionId || null,
+        alert.channel,
+        alert.recipient,
+        alert.subject,
+        alert.bodyText,
+        alert.bodyHtml || null,
+        alert.status || 'SENT',
+        alert.createdAt && !isNaN(new Date(alert.createdAt).getTime()) ? new Date(alert.createdAt).toISOString() : new Date().toISOString(),
+      ]);
+    },
+
+    create: async (alert: DispatchedAlertEntity): Promise<DispatchedAlertEntity> => {
+      await this.dispatchedAlerts.set(alert.id, alert);
+      return alert;
+    },
+
+    findByUser: async (userId: string, channel?: string, limit = 50): Promise<DispatchedAlertEntity[]> => {
+      await this.init();
+      let query = 'SELECT * FROM dispatched_alerts WHERE user_id = $1';
+      const params: any[] = [userId];
+
+      if (channel && channel !== 'all') {
+        params.push(channel.toUpperCase());
+        query += ` AND channel = $${params.length}`;
+      }
+
+      params.push(limit);
+      query += ` ORDER BY created_at DESC LIMIT $${params.length}`;
+
+      const res = await this.pool.query(query, params);
+      return res.rows.map((r) => this.mapRowToDispatchedAlert(r));
+    },
+
+    findByTransaction: async (txnId: string): Promise<DispatchedAlertEntity[]> => {
+      await this.init();
+      const res = await this.pool.query(
+        'SELECT * FROM dispatched_alerts WHERE transaction_id = $1 ORDER BY created_at ASC',
+        [txnId]
+      );
+      return res.rows.map((r) => this.mapRowToDispatchedAlert(r));
+    },
+  };
+
+  private mapRowToDispatchedAlert(row: any): DispatchedAlertEntity {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      transactionId: row.transaction_id || undefined,
+      channel: row.channel,
+      recipient: row.recipient,
+      subject: row.subject,
+      bodyText: row.body_text,
+      bodyHtml: row.body_html || undefined,
+      status: row.status,
+      createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+    };
+  }
 }

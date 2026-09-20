@@ -23,7 +23,7 @@ export class SocketService {
       ws.send(
         JSON.stringify({
           type: 'CONNECTED',
-          message: 'Connected to AURELIS Real-Time Settlement Engine',
+          message: 'Connected to DBS Bank Real-Time Settlement Engine',
           timestamp: new Date().toISOString(),
         })
       );

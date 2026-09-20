@@ -6,6 +6,7 @@ import { BASE_RATES_TO_USD } from '../services/fxService';
 import { LedgerService } from '../services/ledgerService';
 import { TransferService } from '../services/transferService';
 import { SocketService } from '../sockets/websocketServer';
+import { NotificationDispatchService } from '../services/notificationDispatchService';
 
 export class WalletController {
   public static async getWallets(req: AuthenticatedRequest, res: Response) {
@@ -149,8 +150,17 @@ export class WalletController {
         type: 'TRANSACTION_CREATED',
         payload: txn,
       });
+
+      // Dispatch Email & Mobile SMS alerts for deposit ("Add Money")
+      const user = await db.getUserById(userId);
+      if (user) {
+        NotificationDispatchService.dispatchTransactionAlerts(txn, user, {
+          walletBalance: wallet.balance,
+          currency: currency as CurrencyCode,
+        }).catch((err) => console.warn('Deposit alert dispatch note:', err));
+      }
     } catch (e) {
-      console.warn('Socket broadcast error:', e);
+      console.warn('Socket/alert broadcast error:', e);
     }
 
     res.json({
@@ -220,8 +230,18 @@ export class WalletController {
         type: 'TRANSACTION_CREATED',
         payload: txn,
       });
+
+      // Dispatch Email & Mobile SMS alerts for withdrawal
+      const user = await db.getUserById(userId);
+      if (user) {
+        NotificationDispatchService.dispatchTransactionAlerts(txn, user, {
+          walletBalance: wallet.balance,
+          currency: currency as CurrencyCode,
+          counterpartyName: targetAccount,
+        }).catch((err) => console.warn('Withdrawal alert dispatch note:', err));
+      }
     } catch (e) {
-      console.warn('Socket broadcast error:', e);
+      console.warn('Socket/alert broadcast error:', e);
     }
 
     res.json({

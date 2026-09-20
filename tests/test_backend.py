@@ -1,4 +1,4 @@
-"""Backend test suite for Aurelis."""
+"""Backend test suite for DBS Bank."""
 
 import os
 
@@ -12,7 +12,7 @@ def test_core_health_spec():
     """Ensure core health endpoint data specifications."""
     health_spec = {
         "status": "healthy",
-        "platform": "AURELIS Private Wealth API Core",
+        "platform": "DBS Bank Bangladesh API Core",
         "version": "1.0.0",
     }
     assert health_spec["status"] == "healthy"

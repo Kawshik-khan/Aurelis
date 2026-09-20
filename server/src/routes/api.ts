@@ -56,10 +56,18 @@ router.post('/cards/:id/reveal', authMiddleware, CardController.revealDetails);
 router.post('/invoices/request-payment', authMiddleware, InvoiceController.createPaymentRequest);
 router.get('/invoices/pay/:slug', InvoiceController.getPaymentRequestBySlug);
 
-// ================= NOTIFICATIONS =================
+// ================= NOTIFICATIONS & ALERTS =================
 router.get('/notifications', authMiddleware, NotificationController.getNotifications);
 router.patch('/notifications/read-all', authMiddleware, NotificationController.markAllRead);
 router.patch('/notifications/:id/read', authMiddleware, NotificationController.markRead);
+router.get('/notifications/alerts', authMiddleware, NotificationController.getDispatchedAlerts);
+router.get('/notifications/alerts/:id', authMiddleware, NotificationController.getAlertById);
+router.get('/notifications/preferences', authMiddleware, NotificationController.getPreferences);
+router.patch('/notifications/preferences', authMiddleware, NotificationController.updatePreferences);
+router.post('/notifications/test-alert', authMiddleware, NotificationController.triggerTestAlert);
+router.post('/notifications/test-email', authMiddleware, NotificationController.sendTestEmail);
+router.post('/notifications/test-sms', authMiddleware, NotificationController.sendTestSms);
+router.get('/notifications/sms-balance', authMiddleware, NotificationController.getSmsBalance);
 
 // ================= TRANSACTIONS & AUDIT =================
 router.get('/transactions', authMiddleware, TransactionController.getTransactions);

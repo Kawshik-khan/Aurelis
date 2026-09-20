@@ -12,7 +12,7 @@ SocketService.initialize(server);
 
 server.listen(PORT, () => {
   console.log(`=======================================================`);
-  console.log(`[SERVER]  AURELIS Private Wealth API Core Server Running`);
+  console.log(`[SERVER]  DBS Bank Bangladesh API Core Server Running`);
   console.log(`[HTTP]    HTTP Gateway:     http://localhost:${PORT}/v1`);
   console.log(`[DOCS]    API Documentation: http://localhost:${PORT}/api-docs`);
   console.log(`[WS]      WebSocket Stream:  ws://localhost:${PORT}/ws`);

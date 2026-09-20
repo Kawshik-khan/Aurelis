@@ -12,9 +12,11 @@ export const NEON_POSTGRES_SCHEMA = `
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(120) NOT NULL,
     phone VARCHAR(32),
+    phone_number VARCHAR(32),
     aurelis_tag VARCHAR(64) UNIQUE NOT NULL,
-    tier VARCHAR(32) DEFAULT 'Private Client',
-    base_currency VARCHAR(3) DEFAULT 'USD',
+    dbs_tag VARCHAR(64),
+    tier VARCHAR(64),
+    base_currency VARCHAR(3) DEFAULT 'BDT',
     avatar TEXT,
     two_factor_enabled BOOLEAN DEFAULT TRUE,
     two_factor_secret VARCHAR(255),
@@ -22,6 +24,8 @@ export const NEON_POSTGRES_SCHEMA = `
     passkey_enabled BOOLEAN DEFAULT TRUE,
     address TEXT,
     transaction_pin VARCHAR(32) DEFAULT '1234',
+    email_alerts_enabled BOOLEAN DEFAULT TRUE,
+    sms_alerts_enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
   );
@@ -196,7 +200,25 @@ export const NEON_POSTGRES_SCHEMA = `
     timestamp BIGINT NOT NULL
   );
 
-  -- 11. IDEMPOTENT COLUMN MIGRATIONS
+  -- 11. DISPATCHED ALERTS (SMS & EMAIL NOTIFICATIONS)
+  CREATE TABLE IF NOT EXISTS dispatched_alerts (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    transaction_id VARCHAR(64),
+    channel VARCHAR(10) NOT NULL CHECK(channel IN ('EMAIL', 'SMS')),
+    recipient VARCHAR(255) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    body_text TEXT NOT NULL,
+    body_html TEXT,
+    status VARCHAR(20) DEFAULT 'SENT' CHECK(status IN ('SENT', 'DELIVERED', 'FAILED')),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_dispatched_alerts_user ON dispatched_alerts(user_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_dispatched_alerts_channel ON dispatched_alerts(user_id, channel);
+  CREATE INDEX IF NOT EXISTS idx_dispatched_alerts_txn ON dispatched_alerts(transaction_id);
+
+  -- 12. IDEMPOTENT COLUMN MIGRATIONS
   DO $$
   BEGIN
     IF EXISTS (
@@ -211,6 +233,139 @@ export const NEON_POSTGRES_SCHEMA = `
       WHERE table_name = 'notifications' AND column_name = 'timestamp' AND data_type != 'text'
     ) THEN
       ALTER TABLE notifications ALTER COLUMN timestamp TYPE TEXT USING timestamp::TEXT;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'email_alerts_enabled'
+    ) THEN
+      ALTER TABLE users ADD COLUMN email_alerts_enabled BOOLEAN DEFAULT TRUE;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'sms_alerts_enabled'
+    ) THEN
+      ALTER TABLE users ADD COLUMN sms_alerts_enabled BOOLEAN DEFAULT TRUE;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'phone_number'
+    ) THEN
+      ALTER TABLE users ADD COLUMN phone_number VARCHAR(32);
+      UPDATE users SET phone_number = phone WHERE phone_number IS NULL AND phone IS NOT NULL;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'dbs_tag'
+    ) THEN
+      ALTER TABLE users ADD COLUMN dbs_tag VARCHAR(64);
+      UPDATE users SET dbs_tag = aurelis_tag WHERE dbs_tag IS NULL AND aurelis_tag IS NOT NULL;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'avatar_url'
+    ) THEN
+      ALTER TABLE users ADD COLUMN avatar_url TEXT;
+      UPDATE users SET avatar_url = avatar WHERE avatar_url IS NULL AND avatar IS NOT NULL;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'street_address'
+    ) THEN
+      ALTER TABLE users ADD COLUMN street_address VARCHAR(255);
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'city'
+    ) THEN
+      ALTER TABLE users ADD COLUMN city VARCHAR(100);
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'country'
+    ) THEN
+      ALTER TABLE users ADD COLUMN country VARCHAR(100);
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'postal_code'
+    ) THEN
+      ALTER TABLE users ADD COLUMN postal_code VARCHAR(20);
+    END IF;
+
+    -- Wallets: bic_swift
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'wallets' AND column_name = 'bic_swift'
+    ) THEN
+      ALTER TABLE wallets ADD COLUMN bic_swift VARCHAR(11);
+      UPDATE wallets SET bic_swift = bic WHERE bic_swift IS NULL AND bic IS NOT NULL;
+    END IF;
+
+    -- Recipients: avatar_url, dbs_tag
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'recipients' AND column_name = 'avatar_url'
+    ) THEN
+      ALTER TABLE recipients ADD COLUMN avatar_url TEXT;
+      UPDATE recipients SET avatar_url = avatar WHERE avatar_url IS NULL AND avatar IS NOT NULL;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'recipients' AND column_name = 'dbs_tag'
+    ) THEN
+      ALTER TABLE recipients ADD COLUMN dbs_tag VARCHAR(64);
+      UPDATE recipients SET dbs_tag = aurelis_tag WHERE dbs_tag IS NULL AND aurelis_tag IS NOT NULL;
+    END IF;
+
+    -- Transactions: recipient_dbs_tag
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'transactions' AND column_name = 'recipient_dbs_tag'
+    ) THEN
+      ALTER TABLE transactions ADD COLUMN recipient_dbs_tag VARCHAR(64);
+      UPDATE transactions SET recipient_dbs_tag = recipient_aurelis_tag WHERE recipient_dbs_tag IS NULL AND recipient_aurelis_tag IS NOT NULL;
+    END IF;
+
+    -- Cards: pin_hash, drop strict tier check constraint if present
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'cards' AND column_name = 'pin_hash'
+    ) THEN
+      ALTER TABLE cards ADD COLUMN pin_hash VARCHAR(255);
+      UPDATE cards SET pin_hash = pin WHERE pin_hash IS NULL AND pin IS NOT NULL;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.table_constraints 
+      WHERE table_name = 'cards' AND constraint_name = 'cards_tier_check'
+    ) THEN
+      ALTER TABLE cards DROP CONSTRAINT cards_tier_check;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.table_constraints 
+      WHERE table_name = 'dispatched_alerts' AND constraint_name = 'dispatched_alerts_transaction_id_fkey'
+    ) THEN
+      ALTER TABLE dispatched_alerts DROP CONSTRAINT dispatched_alerts_transaction_id_fkey;
+    END IF;
+
+    -- Users: drop default tier constraint and clear any existing user tier values
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'users' AND column_name = 'tier'
+    ) THEN
+      ALTER TABLE users ALTER COLUMN tier DROP DEFAULT;
+      UPDATE users SET tier = NULL WHERE tier IS NOT NULL;
     END IF;
   END $$;
 `;

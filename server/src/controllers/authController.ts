@@ -4,11 +4,12 @@ import bcrypt from 'bcryptjs';
 import { db } from '../db/database';
 import { JWT_SECRET } from '../middleware/authMiddleware';
 import { UserEntity } from '../types';
+import { SmsService } from '../services/smsService';
 
 export class AuthController {
   public static async register(req: Request, res: Response) {
-    const { email, password, fullName, country, baseCurrency, currency } = req.body;
-    const chosenCurrency = (baseCurrency || currency || 'USD') as any;
+    const { email, password, fullName, country, baseCurrency, currency, phone } = req.body;
+    const chosenCurrency = (baseCurrency || currency || 'BDT') as any;
 
     if (!email || !fullName) {
       return res.status(400).json({ error: 'Full Name and Email Address are required.' });
@@ -38,25 +39,25 @@ export class AuthController {
     }
 
     const passwordHash = bcrypt.hashSync(password, 10);
+    const userPhone = phone && String(phone).trim() ? String(phone).trim() : '+880 1700-000000';
 
     const newUser: UserEntity = {
       id: userId,
       email: trimmedEmail,
       passwordHash,
       fullName: fullName.trim(),
-      phone: '+1 (555) 000-0000',
+      phone: userPhone,
       aurelisTag: tag,
-      tier: 'Private Client',
       baseCurrency: chosenCurrency,
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       twoFactorEnabled: true,
       biometricEnabled: true,
       passkeyEnabled: true,
       address: {
-        street: 'Private Residence',
-        city: 'Zurich',
-        country: country || 'Switzerland',
-        postalCode: '8001',
+        street: 'Gulshan Avenue, Road 11',
+        city: 'Dhaka',
+        country: country || 'Bangladesh',
+        postalCode: '1212',
       },
       transactionPin: '1234',
       createdAt: new Date().toISOString(),
@@ -65,7 +66,7 @@ export class AuthController {
 
     await db.users.set(newUser.id, newUser);
 
-    // Auto-provision initial isolated base wallet for new user (default USD if not specified)
+    // Auto-provision initial isolated base wallet for new user (default BDT if not specified)
     const walletId = `w_${chosenCurrency.toLowerCase()}_${Date.now()}`;
     await db.wallets.set(walletId, {
       id: walletId,
@@ -73,9 +74,9 @@ export class AuthController {
       currency: chosenCurrency,
       balance: 10000.00, // Isolated opening balance
       pendingBalance: 0,
-      accountNumber: `AURL ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`,
-      iban: `US89 AURL 0210 0002 ${Math.floor(1000 + Math.random() * 9000)}`,
-      bic: `AURL${chosenCurrency}XX`,
+      accountNumber: `DBS ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`,
+      iban: `BD89 DBSB 0210 0002 ${Math.floor(1000 + Math.random() * 9000)}`,
+      bic: `DBSB${chosenCurrency}DH`,
       isPrimary: true,
       status: 'ACTIVE',
       createdAt: new Date().toISOString(),
@@ -83,6 +84,16 @@ export class AuthController {
     });
 
     db.saveToFile();
+
+    // Dispatch welcome SMS alert via sms.net.bd if phone number is provided
+    if (userPhone && !userPhone.includes('555')) {
+      SmsService.sendSms({
+        to: userPhone,
+        msg: `[DBS Bank] Welcome ${newUser.fullName} to DBS Digital Banking. Your account has been established. Tag: ${newUser.aurelisTag}. Security: Active.`,
+      }).catch((err) => {
+        console.warn('[DBS-AUTH-SMS] Welcome SMS dispatch warning:', err.message);
+      });
+    }
 
     const token = jwt.sign({ id: newUser.id, email: newUser.email, tier: newUser.tier }, JWT_SECRET, {
       expiresIn: '7d',
@@ -94,6 +105,7 @@ export class AuthController {
         id: newUser.id,
         email: newUser.email,
         fullName: newUser.fullName,
+        phone: newUser.phone,
         aurelisTag: newUser.aurelisTag,
         tier: newUser.tier,
         avatar: newUser.avatar,
@@ -132,6 +144,7 @@ export class AuthController {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
+        phone: user.phone,
         aurelisTag: user.aurelisTag,
         tier: user.tier,
         avatar: user.avatar,

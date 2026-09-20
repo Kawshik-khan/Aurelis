@@ -11,10 +11,14 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "start": "tsx server/src/server.ts",
+    "db:migrate": "tsx server/src/db/migrateToNeon.ts",
     "test": "tsx server/test/neonDatabaseTest.ts",
     "test:neon": "tsx server/test/neonDatabaseTest.ts",
     "test:auth": "tsx server/test/authDatabaseTest.ts",
-    "test:integration": "tsx server/test/fullStackIntegrationTest.ts"
+    "test:integration": "tsx server/test/fullStackIntegrationTest.ts",
+    "test:sms": "tsx server/test/smsNetBdTest.ts",
+    "test:sms:live": "tsx server/test/liveSmsNetBdCheck.ts",
+    "test:notif": "tsx server/test/notificationAlertsTest.ts"
   },
   "engines": {
     "node": ">=22.0.0"

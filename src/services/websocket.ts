@@ -133,3 +133,5 @@ export class AurelisSocketClient {
     }
   }
 }
+
+export const DbsSocketClient = AurelisSocketClient;

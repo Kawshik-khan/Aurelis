@@ -6,6 +6,7 @@ import { FXService } from '../services/fxService';
 import { LedgerService } from '../services/ledgerService';
 import { TransferService } from '../services/transferService';
 import { SocketService } from '../sockets/websocketServer';
+import { NotificationDispatchService } from '../services/notificationDispatchService';
 
 export class FXController {
   public static async getLiveRates(req: Request, res: Response) {
@@ -155,6 +156,15 @@ export class FXController {
         type: 'TRANSACTION_CREATED',
         payload: txn,
       });
+
+      // Dispatch Email & Mobile SMS alerts for FX conversion
+      const user = await db.getUserById(userId);
+      if (user) {
+        NotificationDispatchService.dispatchTransactionAlerts(txn, user, {
+          walletBalance: toWallet.balance,
+          currency: toCurrency,
+        }).catch((err) => console.warn('FX alert dispatch note:', err));
+      }
     } catch (e) {
       console.warn('Socket broadcast error:', e);
     }

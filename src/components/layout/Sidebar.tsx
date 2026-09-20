@@ -61,27 +61,17 @@ export const Sidebar: React.FC = () => {
           onClick={() => setCurrentTab('dashboard')}
           className="flex items-center gap-3 cursor-pointer group"
         >
-          {/* Modern Electric Blue Seal Emblem */}
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-[0_4px_16px_rgba(0,102,255,0.4)] group-hover:bg-blue-500 transition-colors">
-            <svg
-              className="w-5 h-5 text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polygon points="12 2 2 22 22 22" fill="currentColor" fillOpacity="0.2" />
-              <path d="M12 2L2 22h20L12 2z" />
-              <circle cx="12" cy="11" r="1.5" fill="currentColor" />
-            </svg>
+          {/* DBS Iconic Red Emblem */}
+          <div className="w-10 h-10 rounded-xl bg-[#E60000] flex items-center justify-center shadow-[0_4px_16px_rgba(230,0,0,0.4)] group-hover:bg-[#cc0000] transition-colors">
+            <span className="text-white font-black text-base tracking-tight">DBS</span>
           </div>
 
           <div>
-            <span className={clsx('text-lg font-extrabold tracking-tight block', isDark ? 'text-white' : 'text-gray-900')}>
-              AURELIS
+            <span className={clsx('text-lg font-black tracking-tight block leading-tight', isDark ? 'text-white' : 'text-gray-900')}>
+              DBS BANK
             </span>
-            <span className="text-[10px] uppercase tracking-wider text-blue-400 font-bold block">
-              Global Wealth
+            <span className="text-[10px] uppercase tracking-wider text-red-500 font-bold block">
+              Digital Banking
             </span>
           </div>
         </div>
@@ -181,7 +171,7 @@ export const Sidebar: React.FC = () => {
           })}
 
           <button
-            onClick={() => alert('AURELIS 24/7 Institutional Wealth Concierge is active. Priority dispatch available.')}
+            onClick={() => alert('DBS Bank 24/7 Helpline: 16234 or +880 2 988 1234. Priority banking support active.')}
             className={clsx(
               'w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all',
               isDark
@@ -190,7 +180,7 @@ export const Sidebar: React.FC = () => {
             )}
           >
             <HelpCircle className={clsx('w-4 h-4', isDark ? 'text-slate-400' : 'text-gray-400')} />
-            <span>VIP Concierge</span>
+            <span>24/7 Helpline (16234)</span>
           </button>
         </div>
       </div>
@@ -209,10 +199,16 @@ export const Sidebar: React.FC = () => {
             <div className={clsx('text-sm font-bold truncate', isDark ? 'text-white' : 'text-gray-900')}>
               {user.name}
             </div>
-            <div className="text-[11px] text-blue-400 font-semibold flex items-center gap-1.5 truncate">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block"></span>
-              <span className="truncate">{user.tier}</span>
-            </div>
+            {user.tier ? (
+              <div className="text-[11px] text-blue-400 font-semibold flex items-center gap-1.5 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block"></span>
+                <span className="truncate">{user.tier}</span>
+              </div>
+            ) : (
+              <div className="text-[11px] text-slate-400 font-medium truncate">
+                {user.email}
+              </div>
+            )}
           </div>
         </div>
 

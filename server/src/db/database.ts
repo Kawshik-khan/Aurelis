@@ -42,6 +42,10 @@ export class DatabaseService {
     return this.pgEngine.notifications;
   }
 
+  public get dispatchedAlerts() {
+    return this.pgEngine.dispatchedAlerts;
+  }
+
   public get ledgerEntries() {
     return this.pgEngine.ledgerEntries;
   }

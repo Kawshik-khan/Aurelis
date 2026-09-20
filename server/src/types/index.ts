@@ -9,7 +9,7 @@ export interface UserEntity {
   fullName: string;
   phone: string;
   aurelisTag: string;
-  tier: UserTier;
+  tier?: string;
   baseCurrency: CurrencyCode;
   avatar: string;
   twoFactorEnabled: boolean;
@@ -23,6 +23,8 @@ export interface UserEntity {
     postalCode: string;
   };
   transactionPin?: string;
+  emailAlertsEnabled?: boolean;
+  smsAlertsEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +75,7 @@ export interface TransactionEntity {
   category: string;
   idempotencyKey?: string;
   receiptSignature?: string;
+  createdAt?: string;
 }
 
 export interface LedgerEntryEntity {
@@ -133,6 +136,7 @@ export interface NotificationEntity {
   timestamp: string;
   isRead: boolean;
   linkedTxnId?: string;
+  createdAt?: string;
 }
 
 export interface FXRateLock {
@@ -157,4 +161,19 @@ export interface PaymentRequestEntity {
   status: 'PENDING' | 'PAID' | 'EXPIRED';
   createdAt: string;
   expiresAt: string;
+}
+
+export type NotificationChannel = 'EMAIL' | 'SMS';
+
+export interface DispatchedAlertEntity {
+  id: string;
+  userId: string;
+  transactionId?: string;
+  channel: NotificationChannel;
+  recipient: string; // email address or phone number
+  subject: string;
+  bodyText: string;
+  bodyHtml?: string;
+  status: 'SENT' | 'DELIVERED' | 'FAILED';
+  createdAt: string;
 }

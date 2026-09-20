@@ -29,7 +29,7 @@ export const ReceiveView: React.FC = () => {
   const safeWallets = Array.isArray(wallets) ? wallets : [];
   const activeWallet = safeWallets.find((w) => w?.currency === selectedCurrency) || safeWallets[0];
   const userNameSlug = (user?.name || 'vault').toLowerCase().replace(/\s+/g, '.');
-  const paymentLink = `https://aurelis.com/pay/${userNameSlug}`;
+  const paymentLink = `https://dbs.com.bd/pay/${userNameSlug}`;
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -87,15 +87,17 @@ export const ReceiveView: React.FC = () => {
               <div className="text-xs font-mono text-gray-500 dark:text-slate-400 mt-0.5">
                 {user.email}
               </div>
-              <div className="mt-2 inline-block text-[10px] uppercase font-bold tracking-wider text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-white/10 border border-blue-200 dark:border-white/15 px-3 py-1 rounded-full">
-                {user.tier}
-              </div>
+              {user.tier && (
+                <div className="mt-2 inline-block text-[10px] uppercase font-bold tracking-wider text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-white/10 border border-blue-200 dark:border-white/15 px-3 py-1 rounded-full">
+                  {user.tier}
+                </div>
+              )}
             </div>
 
             {/* Payment Link Box */}
             <div className="p-4 rounded-2xl bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 text-left shadow-2xs">
               <div className="text-[10px] uppercase font-bold tracking-wider text-gray-500 dark:text-slate-400 mb-1.5">
-                Direct Aurelis Transfer URI
+                Direct DBS Bank Transfer URI
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold truncate">
@@ -121,7 +123,7 @@ export const ReceiveView: React.FC = () => {
               <div className="p-5 rounded-2xl bg-white border border-gray-200 dark:border-white/20 inline-block shadow-lg dark:shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
                 <img
                   src={qrSvgUrl}
-                  alt="Aurelis Payment QR"
+                  alt="DBS Bank Payment QR"
                   className="w-44 h-44 mx-auto rounded-xl"
                 />
                 <div className="text-[10px] uppercase font-bold tracking-wider text-slate-700 mt-2.5">
@@ -290,7 +292,7 @@ export const ReceiveView: React.FC = () => {
                     Correspondent Banking Institution
                   </div>
                   <div className="text-xs font-semibold text-gray-900 dark:text-white mt-0.5">
-                    AURELIS Swiss Custody & Settlement AG (Zurich / New York)
+                    DBS Bank Bangladesh Custody & Settlement (Dhaka / Singapore)
                   </div>
                 </div>
               </div>
@@ -301,7 +303,7 @@ export const ReceiveView: React.FC = () => {
               variant="outline"
               fullWidth
               onClick={() => {
-                const allDetails = `AURELIS Banking Coordinates\nBeneficiary: ${user.name}\nCurrency: ${selectedCurrency}\nAccount: ${activeWallet.accountNumber}\nIBAN: ${activeWallet.iban || 'N/A'}\nSWIFT/BIC: ${activeWallet.bic || 'N/A'}\nRouting: ${activeWallet.routingNumber || 'N/A'}`;
+                const allDetails = `DBS Bank Banking Coordinates\nBeneficiary: ${user.name}\nCurrency: ${selectedCurrency}\nAccount: ${activeWallet.accountNumber}\nIBAN: ${activeWallet.iban || 'N/A'}\nSWIFT/BIC: ${activeWallet.bic || 'N/A'}\nRouting: ${activeWallet.routingNumber || 'N/A'}`;
                 copyToClipboard(allDetails, 'all');
               }}
               leftIcon={

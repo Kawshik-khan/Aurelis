@@ -3,6 +3,7 @@ import { CurrencyCode, RecipientEntity, TransactionEntity, WalletEntity } from '
 import { FXService } from './fxService';
 import { LedgerService } from './ledgerService';
 import { SocketService } from '../sockets/websocketServer';
+import { NotificationDispatchService } from './notificationDispatchService';
 
 export class TransferService {
   public static generateTxnId(): string {
@@ -44,7 +45,7 @@ export class TransferService {
     const targetTag = (recipient?.aurelisTag || '').toLowerCase().trim();
     const targetName = (recipient?.name || params.recipientName || '').toLowerCase().trim();
 
-    // Look up if recipient is a registered AURELIS user
+    // Look up if recipient is a registered DBS Bank user
     let recipientUser =
       (params.recipientId ? await db.getUserById(params.recipientId) : null) ||
       (params.recipientId ? await db.findUserByEmailOrTag(params.recipientId) : null) ||
@@ -79,18 +80,17 @@ export class TransferService {
       if (matchedRec) {
         recipientUser = {
           id: matchedRec.id,
-          email: matchedRec.email || `${matchedRec.id}@vault.aurelis.com`,
+          email: matchedRec.email || `${matchedRec.id}@vault.dbs.com.bd`,
           fullName: matchedRec.name,
-          phone: matchedRec.phone || '+1 (555) 000-0000',
+          phone: matchedRec.phone || '+880 1700-000000',
           passwordHash: '',
           aurelisTag: matchedRec.aurelisTag || `@${matchedRec.name.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-          tier: 'Private Client',
           baseCurrency: matchedRec.currency || params.destinationCurrency,
           avatar: matchedRec.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
           twoFactorEnabled: true,
           biometricEnabled: false,
           passkeyEnabled: false,
-          address: { street: 'Private Sovereign Vault', city: 'Zurich', country: 'Switzerland', postalCode: '8001' },
+          address: { street: 'Gulshan Avenue, Road 11', city: 'Dhaka', country: 'Bangladesh', postalCode: '1212' },
           transactionPin: '1234',
           createdAt: matchedRec.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -103,7 +103,7 @@ export class TransferService {
     if (!recipientUser) {
       const identifier = params.recipientEmail || params.recipientId || params.recipientName || 'unknown';
       throw new Error(
-        `Transfer rejected: Recipient "${identifier}" was not found in the AURELIS registry. No funds were debited from your account.`
+        `Transfer rejected: Recipient "${identifier}" was not found in the DBS Bank registry. No funds were debited from your account.`
       );
     }
 
@@ -157,13 +157,13 @@ export class TransferService {
       recipientEmail: recipient?.email || params.recipientEmail,
       recipientAvatar: recipient?.avatar,
       recipientAurelisTag: recipient?.aurelisTag,
-      paymentMethod: `AURELIS ${params.sourceCurrency} Wallet`,
+      paymentMethod: `DBS Bank ${params.sourceCurrency} Wallet`,
       status: 'Completed',
       date: new Date().toISOString(),
       reference: params.reference || 'Global Transfer Settlement',
       category: 'Transfer',
       idempotencyKey: params.idempotencyKey,
-      receiptSignature: `AURELIS_VAULT_SHA256_${txnId}_SIG_VALID`,
+      receiptSignature: `DBS_BANK_SHA256_${txnId}_SIG_VALID`,
     };
 
     // Save transaction and updated source wallet
@@ -180,10 +180,12 @@ export class TransferService {
       balanceAfter: sourceWallet.balance,
     });
 
-    // 6. If recipient is an internal AURELIS user, credit their wallet & record ledger/transaction
+    // 6. If recipient is an internal DBS Bank user, credit their wallet & record ledger/transaction
+    let recipientWallet: WalletEntity | undefined;
+    let receiveTxn: TransactionEntity | undefined;
     if (recipientUser && recipientUser.id !== params.userId) {
       const recWallets = await db.wallets.findByUser(recipientUser.id);
-      let recipientWallet = recWallets.find((w) => w.currency === params.destinationCurrency);
+      recipientWallet = recWallets.find((w) => w.currency === params.destinationCurrency);
 
       if (!recipientWallet) {
         const newWalletId = `w_${params.destinationCurrency.toLowerCase()}_${Date.now()}`;
@@ -193,9 +195,9 @@ export class TransferService {
           currency: params.destinationCurrency,
           balance: 0,
           pendingBalance: 0,
-          accountNumber: `AURL ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`,
-          iban: `CH93 AURL ${Math.floor(100000000000 + Math.random() * 900000000000)}`,
-          bic: 'AURLCHZZXXX',
+          accountNumber: `DBS ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(1000 + Math.random() * 9000)}`,
+          iban: `BD89 DBSB ${Math.floor(100000000000 + Math.random() * 900000000000)}`,
+          bic: 'DBSBBDDHXXX',
           isPrimary: false,
           status: 'ACTIVE',
           createdAt: new Date().toISOString(),
@@ -210,7 +212,7 @@ export class TransferService {
 
       // Record incoming transaction for recipient
       const recTxnId = `${txnId}_REC`;
-      const receiveTxn: TransactionEntity = {
+      receiveTxn = {
         id: recTxnId,
         userId: recipientUser.id,
         type: 'receive',
@@ -222,15 +224,15 @@ export class TransferService {
         exchangeRate,
         fee: 0,
         totalCharged: 0,
-        senderName: senderUser ? senderUser.fullName : 'AURELIS Client',
+        senderName: senderUser ? senderUser.fullName : 'DBS Bank Customer',
         recipientName: recipientUser.fullName,
         recipientEmail: recipientUser.email,
-        paymentMethod: `AURELIS ${params.sourceCurrency} Instant Transfer`,
+        paymentMethod: `DBS Bank ${params.sourceCurrency} Instant Transfer`,
         status: 'Completed',
         date: new Date().toISOString(),
         reference: params.reference || 'P2P Transfer Settlement',
         category: 'Transfer',
-        receiptSignature: `AURELIS_VAULT_RECEIVE_${txnId}`,
+        receiptSignature: `DBS_BANK_RECEIVE_${txnId}`,
       };
       await db.transactions.set(receiveTxn.id, receiveTxn);
 
@@ -250,7 +252,7 @@ export class TransferService {
         id: recNotifId,
         userId: recipientUser.id,
         title: 'Money received',
-        description: `You received ${params.destinationCurrency} ${destinationAmount.toFixed(2)} from ${senderUser?.fullName || 'AURELIS Client'}.`,
+        description: `You received ${params.destinationCurrency} ${destinationAmount.toFixed(2)} from ${senderUser?.fullName || 'DBS Bank Customer'}.`,
         type: 'transfer',
         timestamp: 'Just now',
         isRead: false,
@@ -274,7 +276,7 @@ export class TransferService {
           email: recipientUser.email,
           avatar: recipientUser.avatar,
           currency: params.destinationCurrency,
-          bankName: 'Aurelis Sovereign Vault',
+          bankName: 'DBS Bank Bangladesh',
           accountNumber: `ID: ${recipientUser.id}`,
           routingOrIban: recipientUser.id,
           aurelisTag: recipientUser.aurelisTag,
@@ -347,6 +349,27 @@ export class TransferService {
             payload: recNotif,
           });
         }
+
+        // Dispatch Email and Mobile SMS alerts to counterparty recipient
+        const finalRecTxn = recTxn || receiveTxn;
+        if (finalRecTxn) {
+          NotificationDispatchService.dispatchTransactionAlerts(finalRecTxn, recipientUser, {
+            walletBalance: targetRecWallet?.balance ?? recipientWallet?.balance,
+            currency: params.destinationCurrency,
+            counterpartyName: senderUser?.phone || senderUser?.fullName || 'DBS Bank Customer',
+            counterpartyEmail: senderUser?.email,
+          }).catch((err) => console.warn('Recipient notification dispatch error:', err));
+        }
+      }
+
+      // 10. Dispatch Email and Mobile SMS alerts to sender
+      if (senderUser) {
+        NotificationDispatchService.dispatchTransactionAlerts(newTxn, senderUser, {
+          walletBalance: sourceWallet.balance,
+          currency: params.sourceCurrency,
+          counterpartyName: recipientUser?.phone || newTxn.recipientName,
+          counterpartyEmail: newTxn.recipientEmail,
+        }).catch((err) => console.warn('Sender notification dispatch error:', err));
       }
     } catch (wsErr) {
       console.warn('WebSocket broadcast error (non-fatal):', wsErr);

@@ -189,7 +189,7 @@ export const SendMoneyView: React.FC = () => {
                       {r.email || 'No email recorded'}
                     </div>
                     <div className={clsx('text-[11px] font-mono mt-0.5', isDark ? 'text-slate-500' : 'text-gray-400')}>
-                      ID: {r.id || 'N/A'} • {r.aurelisTag || 'Sovereign Vault'}
+                      ID: {r.id || 'N/A'} • {r.aurelisTag || 'DBS Bank Account'}
                     </div>
                   </div>
                 </div>

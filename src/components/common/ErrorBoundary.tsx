@@ -27,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('[AURELIS ErrorBoundary] Caught render error:', error, errorInfo);
+    console.error('[DBS Bank ErrorBoundary] Caught render error:', error, errorInfo);
     this.setState({ errorInfo });
   }
 
@@ -46,29 +46,29 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="min-h-[400px] flex items-center justify-center p-6 animate-fade-in">
-          <div className="max-w-md w-full bg-aurelis-surface rounded-2xl border border-aurelis-border p-8 shadow-luxury text-center space-y-5">
-            {/* Luxury Alert Badge */}
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 flex items-center justify-center mx-auto shadow-sm">
+          <div className="max-w-md w-full bg-white dark:bg-[#121520] rounded-2xl border border-gray-200 dark:border-white/10 p-8 shadow-xl text-center space-y-5">
+            {/* Alert Badge */}
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center mx-auto shadow-sm">
               <ShieldAlert className="w-8 h-8" />
             </div>
 
             <div className="space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-luxury text-aurelis-champagne-dark block">
-                Vault Integrity Preserved
+              <span className="text-[10px] font-bold uppercase tracking-wider text-red-500 block">
+                Account Integrity Preserved
               </span>
-              <h2 className="font-serif text-2xl font-bold text-aurelis-text">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                 {this.props.fallbackTitle || 'Display Interrupted'}
               </h2>
-              <p className="text-xs text-aurelis-muted leading-relaxed max-w-sm mx-auto">
+              <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed max-w-sm mx-auto">
                 {this.props.fallbackSubtitle ||
-                  'A temporary interface condition prevented this view from rendering. Your account assets and ledger remain fully secure.'}
+                  'A temporary interface condition prevented this view from rendering. Your account assets and balances remain fully secure.'}
               </p>
             </div>
 
             {/* Error Message Snippet */}
             {this.state.error && (
-              <div className="p-3.5 rounded-xl bg-[#FAF9F5] border border-aurelis-border text-left font-mono text-[11px] text-aurelis-muted overflow-x-auto max-h-24 no-scrollbar">
-                <span className="text-red-700 font-semibold block mb-0.5">Details:</span>
+              <div className="p-3.5 rounded-xl bg-gray-50 dark:bg-white/[0.04] border border-gray-200 dark:border-white/10 text-left font-mono text-[11px] text-gray-600 dark:text-slate-400 overflow-x-auto max-h-24 no-scrollbar">
+                <span className="text-red-600 font-semibold block mb-0.5">Details:</span>
                 {this.state.error.message || String(this.state.error)}
               </div>
             )}
@@ -79,7 +79,8 @@ export class ErrorBoundary extends Component<Props, State> {
                 variant="primary"
                 fullWidth
                 onClick={this.handleReset}
-                leftIcon={<RefreshCw className="w-4 h-4 text-aurelis-champagne" />}
+                leftIcon={<RefreshCw className="w-4 h-4" />}
+                className="bg-[#E60000] hover:bg-[#cc0000] text-white"
               >
                 Try Again
               </Button>
@@ -87,9 +88,9 @@ export class ErrorBoundary extends Component<Props, State> {
                 variant="outline"
                 fullWidth
                 onClick={this.handleReload}
-                leftIcon={<LayoutDashboard className="w-4 h-4 text-aurelis-muted" />}
+                leftIcon={<LayoutDashboard className="w-4 h-4" />}
               >
-                Reload Vault
+                Reload Banking
               </Button>
             </div>
           </div>

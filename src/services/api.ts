@@ -1,4 +1,4 @@
-import { CurrencyCode, Recipient, Transaction, UserProfile, Wallet, CardItem, NotificationItem } from '../types';
+import { CurrencyCode, Recipient, Transaction, UserProfile, Wallet, CardItem, NotificationItem, DispatchedAlert } from '../types';
 
 const getApiBase = (): string => {
   if (import.meta.env.VITE_API_URL) {
@@ -86,6 +86,7 @@ export class AurelisApiClient {
   public static async register(data: {
     email: string;
     fullName: string;
+    phone?: string;
     country?: string;
     baseCurrency?: string;
     password?: string;
@@ -352,6 +353,88 @@ export class AurelisApiClient {
     });
   }
 
+  // DISPATCHED ALERTS (EMAIL & MOBILE SMS)
+  public static async getDispatchedAlerts(channel?: 'all' | 'email' | 'sms', limit = 50) {
+    const q = new URLSearchParams();
+    if (channel && channel !== 'all') q.set('channel', channel);
+    if (limit) q.set('limit', String(limit));
+    const qs = q.toString() ? `?${q.toString()}` : '';
+    return this.request<{ alerts: DispatchedAlert[] }>(`/notifications/alerts${qs}`);
+  }
+
+  public static async getDispatchedAlertById(id: string) {
+    return this.request<{ alert: DispatchedAlert }>(`/notifications/alerts/${id}`);
+  }
+
+  public static async getAlertPreferences() {
+    return this.request<{
+      emailAlertsEnabled: boolean;
+      smsAlertsEnabled: boolean;
+      email: string;
+      phone: string;
+    }>('/notifications/preferences');
+  }
+
+  public static async updateAlertPreferences(prefs: { emailAlertsEnabled?: boolean; smsAlertsEnabled?: boolean; phone?: string }) {
+    return this.request<{
+      message: string;
+      preferences: { emailAlertsEnabled: boolean; smsAlertsEnabled: boolean; phone?: string };
+    }>('/notifications/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(prefs),
+    });
+  }
+
+  public static async triggerTestAlert(payload?: { type?: string; amount?: number; currency?: CurrencyCode }) {
+    return this.request<{
+      message: string;
+      transaction: any;
+      alerts: { emailAlert?: DispatchedAlert; smsAlert?: DispatchedAlert };
+    }>('/notifications/test-alert', {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
+  public static async sendTestEmail(to?: string) {
+    return this.request<{
+      message: string;
+      success: boolean;
+      provider: string;
+      id?: string;
+      error?: string;
+      recipient: string;
+    }>('/notifications/test-email', {
+      method: 'POST',
+      body: JSON.stringify(to ? { to } : {}),
+    });
+  }
+
+  public static async sendTestSms(to?: string, msg?: string) {
+    return this.request<{
+      message: string;
+      success: boolean;
+      provider: string;
+      requestId?: number | string;
+      error?: string;
+      errorCode?: number;
+      recipient: string;
+      raw?: any;
+    }>('/notifications/test-sms', {
+      method: 'POST',
+      body: JSON.stringify({ to, msg }),
+    });
+  }
+
+  public static async getSmsBalance() {
+    return this.request<{
+      success: boolean;
+      balance?: string;
+      error?: string;
+      errorCode?: number;
+    }>('/notifications/sms-balance');
+  }
+
   // TRANSACTIONS
   public static async getTransactions(query?: { type?: string; currency?: string; search?: string }) {
     const params = new URLSearchParams((query as Record<string, string>) || {}).toString();
@@ -362,4 +445,6 @@ export class AurelisApiClient {
     return this.request<{ receipt: any }>(`/transactions/${id}/receipt`);
   }
 }
+
+export const DbsApiClient = AurelisApiClient;
 

@@ -300,7 +300,7 @@ export const ExchangeView: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-            <span>AURELIS fee</span>
+            <span>DBS Bank fee</span>
             <span className="font-bold text-blue-600 dark:text-blue-400">$0.00 (Zero Spread Markup)</span>
           </div>
 

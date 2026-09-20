@@ -220,7 +220,7 @@ export const CardsView: React.FC = () => {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className={clsx('font-black text-xl tracking-[0.22em]', visual.logoColor)}>
-                            AURELIS
+                            DBS BANK
                           </span>
                           <span className={clsx('text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full border', visual.tagBg)}>
                             {activeCard.type}

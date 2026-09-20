@@ -14,6 +14,8 @@ import {
   Sparkles,
   ShieldAlert,
   UserCheck,
+  Mail,
+  Loader2,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Avatar } from '../common/Avatar';
@@ -22,7 +24,7 @@ import { Input } from '../common/Input';
 import { clsx } from 'clsx';
 
 export const ProfileView: React.FC = () => {
-  const { user, updateUserProfile, updateTransactionPin, logout } = useApp();
+  const { user, updateUserProfile, updateTransactionPin, logout, triggerTestAlert, updateAlertPreferences } = useApp();
 
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
@@ -34,6 +36,10 @@ export const ProfileView: React.FC = () => {
   const [twoFactor, setTwoFactor] = useState(user.twoFactorEnabled);
   const [biometrics, setBiometrics] = useState(user.biometricEnabled);
   const [passkeys, setPasskeys] = useState(user.passkeyEnabled);
+  const [emailAlerts, setEmailAlerts] = useState(user.emailAlertsEnabled !== false);
+  const [smsAlerts, setSmsAlerts] = useState(user.smsAlertsEnabled !== false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testSentMessage, setTestSentMessage] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Transaction PIN Change State
@@ -101,10 +107,32 @@ export const ProfileView: React.FC = () => {
       twoFactorEnabled: twoFactor,
       biometricEnabled: biometrics,
       passkeyEnabled: passkeys,
+      emailAlertsEnabled: emailAlerts,
+      smsAlertsEnabled: smsAlerts,
     });
+
+    updateAlertPreferences({
+      emailAlertsEnabled: emailAlerts,
+      smsAlertsEnabled: smsAlerts,
+      phone,
+    }).catch(() => {});
 
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
+  };
+
+  const handleSendTestAlert = async () => {
+    setIsSendingTest(true);
+    setTestSentMessage(null);
+    try {
+      await triggerTestAlert('send', 15000, 'USD');
+      setTestSentMessage('Sample alerts delivered to email & mobile SMS!');
+      setTimeout(() => setTestSentMessage(null), 4000);
+    } catch (err: any) {
+      setTestSentMessage(err.message || 'Failed to dispatch test alerts.');
+    } finally {
+      setIsSendingTest(false);
+    }
   };
 
   return (
@@ -132,15 +160,17 @@ export const ProfileView: React.FC = () => {
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                 {user.name}
               </h2>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-white/[0.06] border border-blue-200 dark:border-white/10 px-2.5 py-0.5 rounded-full">
-                {user.tier}
-              </span>
+              {user.tier && (
+                <span className="text-[10px] uppercase font-bold tracking-wider text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-white/[0.06] border border-blue-200 dark:border-white/10 px-2.5 py-0.5 rounded-full">
+                  {user.tier}
+                </span>
+              )}
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono">
               {user.email} • {user.aurelisTag}
             </div>
             <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 font-medium">
-              Member since {user.memberSince} • Sovereign Swiss Custody ID: #AURL-98402
+              Member since {user.memberSince} • DBS Bangladesh Customer ID: #DBS-98402
             </div>
           </div>
         </div>
@@ -207,6 +237,87 @@ export const ProfileView: React.FC = () => {
               value={country}
               onChange={(e) => setCountry(e.target.value)}
             />
+          </div>
+        </div>
+
+        {/* Transaction Alerts & Notifications Bento */}
+        <div className="glass-bento rounded-3xl p-6 sm:p-8 space-y-5 text-gray-900 dark:text-white">
+          <div className="border-b border-black/10 dark:border-white/10 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                Transaction Completion Alerts (Email & Mobile SMS)
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Automated multi-channel confirmation when sending, receiving, or adding funds
+              </p>
+            </div>
+
+            <button
+              type="button"
+              disabled={isSendingTest}
+              onClick={handleSendTestAlert}
+              className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all disabled:opacity-50 cursor-pointer self-start sm:self-auto"
+            >
+              {isSendingTest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              <span>Test Live Alerts</span>
+            </button>
+          </div>
+
+          {testSentMessage && (
+            <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 text-xs flex items-center gap-2 animate-fade-in">
+              <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>{testSentMessage}</span>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {/* Email Alerts Toggle */}
+            <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all flex items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-3.5">
+                <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-white/10 border border-blue-200/60 dark:border-white/15 text-blue-600 dark:text-blue-400">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-gray-900 dark:text-white">
+                    Email Transaction Receipts (Mail)
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Receive luxury HTML transaction receipts with cryptographic signatures at <strong className="font-mono text-gray-800 dark:text-slate-200">{email}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <input
+                type="checkbox"
+                checked={emailAlerts}
+                onChange={(e) => setEmailAlerts(e.target.checked)}
+                className="w-5 h-5 accent-blue-600 rounded-md cursor-pointer"
+              />
+            </div>
+
+            {/* Mobile SMS Alerts Toggle */}
+            <div className="p-4 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all flex items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-3.5">
+                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-white/10 border border-emerald-200/60 dark:border-white/15 text-emerald-600 dark:text-emerald-400">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-gray-900 dark:text-white">
+                    Mobile SMS Text Alerts
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Receive instant real-time SMS messages whenever funds are debited or credited on <strong className="font-mono text-gray-800 dark:text-slate-200">{phone || '+880 1700-000000'}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <input
+                type="checkbox"
+                checked={smsAlerts}
+                onChange={(e) => setSmsAlerts(e.target.checked)}
+                className="w-5 h-5 accent-blue-600 rounded-md cursor-pointer"
+              />
+            </div>
           </div>
         </div>
 

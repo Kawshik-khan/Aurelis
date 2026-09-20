@@ -7,6 +7,8 @@ import { MobileNav } from './components/layout/MobileNav';
 import { NotificationDrawer } from './components/layout/NotificationDrawer';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { NotificationToastContainer } from './components/common/NotificationToastContainer';
+import { MessagePreviewModal } from './components/notifications/MessagePreviewModal';
 
 // Screens
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -39,6 +41,8 @@ export const AppContent: React.FC = () => {
     modalPayload,
     closeModal,
     selectedTxn,
+    selectedAlert,
+    closeAlertPreview,
   } = useApp();
 
   const { isDark } = useTheme();
@@ -208,6 +212,15 @@ export const AppContent: React.FC = () => {
           onClose={closeModal}
         />
       )}
+
+      {/* Real-time Multi-Channel Notification Toasts */}
+      <NotificationToastContainer />
+
+      {/* Dispatched Alert (SMS / Email) Interactive Previewer */}
+      <MessagePreviewModal
+        alert={selectedAlert}
+        onClose={closeAlertPreview}
+      />
     </div>
   );
 };

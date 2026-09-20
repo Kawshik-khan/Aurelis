@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCheck, ArrowUpRight, ArrowDownLeft, ShieldAlert, TrendingUp, Info } from 'lucide-react';
+import { X, CheckCheck, ArrowUpRight, ArrowDownLeft, ShieldAlert, TrendingUp, Info, Smartphone, Mail } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Button } from '../common/Button';
@@ -20,10 +20,13 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
     markAllNotificationsRead,
     transactions,
     openTxnDetail,
+    dispatchedAlerts,
+    openAlertPreview,
   } = useApp();
 
   const { isDark } = useTheme();
 
+  const [section, setSection] = useState<'notifications' | 'alerts'>('notifications');
   const [activeFilter, setActiveFilter] = useState<'all' | 'transfer' | 'security'>('all');
 
   if (!isOpen) return null;
@@ -94,40 +97,148 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
             </button>
           </div>
 
-          {/* Filter Bar & Mark Read */}
-          <div className={clsx('px-6 py-3 border-b flex items-center justify-between gap-2', isDark ? 'border-white/10' : 'border-gray-200')}>
-            <div className="flex items-center gap-1.5">
-              {(['all', 'transfer', 'security'] as const).map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setActiveFilter(filter)}
-                  className={clsx(
-                    'px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-colors',
-                    activeFilter === filter
-                      ? 'bg-blue-600 text-white font-semibold'
-                      : isDark ? 'text-slate-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
-                  )}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-
+          {/* Section Selector: In-App Notifications vs SMS & Mail Alerts */}
+          <div className={clsx('px-6 pt-3 pb-1 border-b flex items-center gap-2', isDark ? 'border-white/10' : 'border-gray-200')}>
             <button
-              onClick={markAllNotificationsRead}
+              onClick={() => setSection('notifications')}
               className={clsx(
-                'text-xs flex items-center gap-1 transition-colors',
-                isDark ? 'text-slate-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                'px-3 py-1.5 rounded-xl text-xs font-bold transition-all',
+                section === 'notifications'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : isDark ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
               )}
             >
-              <CheckCheck className="w-3.5 h-3.5" />
-              <span>Mark all read</span>
+              In-App Alerts ({notifications.length})
+            </button>
+
+            <button
+              onClick={() => setSection('alerts')}
+              className={clsx(
+                'px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5',
+                section === 'alerts'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : isDark ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+              )}
+            >
+              <span>SMS & Mail History</span>
+              {dispatchedAlerts.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">
+                  {dispatchedAlerts.length}
+                </span>
+              )}
             </button>
           </div>
 
-          {/* Notification List */}
+          {/* Filter Bar & Mark Read (Only on In-App tab) */}
+          {section === 'notifications' && (
+            <div className={clsx('px-6 py-3 border-b flex items-center justify-between gap-2', isDark ? 'border-white/10' : 'border-gray-200')}>
+              <div className="flex items-center gap-1.5">
+                {(['all', 'transfer', 'security'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setActiveFilter(filter)}
+                    className={clsx(
+                      'px-2.5 py-1 rounded-lg text-xs font-medium capitalize transition-colors',
+                      activeFilter === filter
+                        ? 'bg-blue-600 text-white font-semibold'
+                        : isDark ? 'text-slate-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                    )}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={markAllNotificationsRead}
+                className={clsx(
+                  'text-xs flex items-center gap-1 transition-colors',
+                  isDark ? 'text-slate-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                )}
+              >
+                <CheckCheck className="w-3.5 h-3.5" />
+                <span>Mark all read</span>
+              </button>
+            </div>
+          )}
+
+          {/* Body Content */}
           <div className="flex-1 overflow-y-auto p-6 space-y-3">
-            {filteredNotifications.length === 0 ? (
+            {section === 'alerts' ? (
+              dispatchedAlerts.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className={clsx(
+                    'w-12 h-12 rounded-full border flex items-center justify-center mx-auto mb-3',
+                    isDark ? 'bg-white/[0.04] border-white/10 text-slate-400' : 'bg-gray-100 border-gray-200 text-gray-400'
+                  )}>
+                    <Smartphone className="w-5 h-5" />
+                  </div>
+                  <p className={clsx('text-sm font-semibold', isDark ? 'text-white' : 'text-gray-900')}>No dispatched alerts yet</p>
+                  <p className={clsx('text-xs mt-1', isDark ? 'text-slate-400' : 'text-gray-500')}>
+                    Send money, receive funds, or add money to generate instant SMS and email receipts.
+                  </p>
+                </div>
+              ) : (
+                dispatchedAlerts.map((alert) => {
+                  const isSms = alert.channel === 'SMS';
+                  return (
+                    <div
+                      key={alert.id}
+                      onClick={() => {
+                        onClose();
+                        openAlertPreview(alert);
+                      }}
+                      className={clsx(
+                        'p-4 rounded-2xl border transition-all cursor-pointer relative group',
+                        isDark
+                          ? 'bg-white/[0.03] border-white/10 hover:border-white/20 hover:bg-white/[0.05]'
+                          : 'bg-gray-50 border-gray-200 hover:border-gray-300 hover:bg-gray-100/80'
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={clsx(
+                          'p-2 rounded-xl border shrink-0',
+                          isSms
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
+                            : 'bg-blue-500/10 border-blue-500/30 text-blue-500'
+                        )}>
+                          {isSms ? <Smartphone className="w-4 h-4" /> : <Mail className="w-4 h-4" />}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className={clsx(
+                              'text-[10px] uppercase font-bold tracking-wider px-2 py-0.2 rounded-md border',
+                              isSms
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                            )}>
+                              {alert.channel}
+                            </span>
+                            <span className={clsx('text-[10px]', isDark ? 'text-slate-500' : 'text-gray-400')}>
+                              {new Date(alert.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+
+                          <div className={clsx('text-xs font-bold mt-1.5 truncate', isDark ? 'text-white' : 'text-gray-900')}>
+                            {alert.subject}
+                          </div>
+
+                          <p className={clsx('text-xs mt-0.5 line-clamp-2', isDark ? 'text-slate-400' : 'text-gray-500')}>
+                            {alert.bodyText}
+                          </p>
+
+                          <div className="mt-2 text-[10px] text-blue-500 dark:text-blue-400 font-semibold flex items-center gap-1">
+                            <span>{isSms ? 'View SMS Message Bubble' : 'Preview Email Receipt'}</span>
+                            <ArrowUpRight className="w-3 h-3" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )
+            ) : filteredNotifications.length === 0 ? (
               <div className="text-center py-16">
                 <div className={clsx(
                   'w-12 h-12 rounded-full border flex items-center justify-center mx-auto mb-3',

@@ -48,6 +48,7 @@ export interface Transaction {
   reference?: string;
   category: 'Transfer' | 'Subscription' | 'Dining' | 'Investment' | 'Exchange' | 'Salary' | 'Shopping' | 'Deposit' | 'Private Wealth';
   estimatedArrival?: string;
+  createdAt?: string;
 }
 
 export interface Recipient {
@@ -94,6 +95,7 @@ export interface NotificationItem {
   timestamp: string;
   isRead: boolean;
   linkedTxnId?: string;
+  createdAt?: string;
 }
 
 export interface ActiveSession {
@@ -113,7 +115,7 @@ export interface UserProfile {
   phone: string;
   avatar: string;
   aurelisTag: string;
-  tier: 'Private Wealth Sovereign' | 'Private Client' | 'Signature Elite';
+  tier?: string;
   memberSince: string;
   primaryCurrency: CurrencyCode;
   twoFactorEnabled: boolean;
@@ -127,6 +129,21 @@ export interface UserProfile {
   };
   activeSessions: ActiveSession[];
   transactionPin?: string;
+  emailAlertsEnabled?: boolean;
+  smsAlertsEnabled?: boolean;
+}
+
+export interface DispatchedAlert {
+  id: string;
+  userId: string;
+  transactionId?: string;
+  channel: 'EMAIL' | 'SMS';
+  recipient: string;
+  subject: string;
+  bodyText: string;
+  bodyHtml?: string;
+  status: 'SENT' | 'DELIVERED' | 'FAILED';
+  createdAt: string;
 }
 
 export type NavigationTab = 

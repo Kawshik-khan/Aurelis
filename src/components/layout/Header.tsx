@@ -63,11 +63,11 @@ export const Header: React.FC<HeaderProps> = ({
         onClick={() => setCurrentTab('dashboard')}
         className="flex lg:hidden items-center gap-2.5 cursor-pointer"
       >
-        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-[0_2px_12px_rgba(0,102,255,0.4)]">
-          <span className="font-bold text-sm">A</span>
+        <div className="w-8 h-8 rounded-lg bg-[#E60000] flex items-center justify-center text-white shadow-[0_2px_12px_rgba(230,0,0,0.4)]">
+          <span className="font-black text-xs">DBS</span>
         </div>
-        <span className={clsx('text-base font-extrabold tracking-tight', isDark ? 'text-white' : 'text-gray-900')}>
-          AURELIS
+        <span className={clsx('text-base font-black tracking-tight', isDark ? 'text-white' : 'text-gray-900')}>
+          DBS BANK
         </span>
       </div>
 
@@ -84,8 +84,8 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         >
           <div className="flex items-center gap-2.5">
-            <Search className={clsx('w-4 h-4 transition-colors', isDark ? 'text-slate-400 group-hover:text-blue-400' : 'text-gray-400 group-hover:text-blue-500')} />
-            <span>Search transactions, beneficiaries, currencies...</span>
+            <Search className={clsx('w-4 h-4 transition-colors', isDark ? 'text-slate-400 group-hover:text-red-400' : 'text-gray-400 group-hover:text-red-500')} />
+            <span>Search transactions, beneficiaries, bKash, banks...</span>
           </div>
           <kbd className={clsx(
             'hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono rounded',
@@ -230,12 +230,14 @@ export const Header: React.FC<HeaderProps> = ({
               <div className={clsx('px-3 py-2.5 border-b mb-1', isDark ? 'border-white/10' : 'border-gray-200')}>
                 <div className={clsx('text-xs font-bold', isDark ? 'text-white' : 'text-gray-900')}>{user.name}</div>
                 <div className={clsx('text-[11px] truncate', isDark ? 'text-slate-400' : 'text-gray-500')}>{user.email}</div>
-                <div className={clsx(
-                  'mt-1.5 inline-block text-[10px] uppercase font-bold tracking-wider text-blue-400 px-2 py-0.5 rounded-md border',
-                  isDark ? 'bg-white/[0.06] border-white/10' : 'bg-blue-50 border-blue-200'
-                )}>
-                  {user.tier}
-                </div>
+                {user.tier && (
+                  <div className={clsx(
+                    'mt-1.5 inline-block text-[10px] uppercase font-bold tracking-wider text-blue-400 px-2 py-0.5 rounded-md border',
+                    isDark ? 'bg-white/[0.06] border-white/10' : 'bg-blue-50 border-blue-200'
+                  )}>
+                    {user.tier}
+                  </div>
+                )}
               </div>
 
               <div className="py-1">

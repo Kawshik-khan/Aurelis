@@ -49,7 +49,7 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Withdraw Capital"
-      subtitle="Wire funds from your AURELIS reserves to an external banking account"
+      subtitle="Transfer funds from your DBS Bank reserves to an external bank account or MFS"
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -76,8 +76,8 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
           </label>
           <div className="space-y-2">
             {[
-              { id: 'chase', name: 'Chase Checking (•••• 9021)', desc: 'Primary Linked Depository · Same Day ACH' },
-              { id: 'ubs', name: 'UBS Custody Switzerland (•••• 4810)', desc: 'SWIFT Euro/CHF Interbank Rail' },
+              { id: 'brac', name: 'BRAC Bank Checking (•••• 9021)', desc: 'Primary Linked Account · BEFTN / NPSB Instant' },
+              { id: 'bkash', name: 'bKash Wallet (•••• 4810)', desc: 'Instant MFS Disbursement Rail' },
             ].map((acc) => {
               const isSelected = destinationAccount === acc.name;
 

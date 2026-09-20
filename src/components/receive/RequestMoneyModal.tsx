@@ -59,7 +59,7 @@ export const RequestMoneyModal: React.FC<RequestMoneyModalProps> = ({
     } catch (err: any) {
       console.warn('API payment request fallback:', err);
       const userNameSlug = (user?.name || 'vault').toLowerCase().replace(/\s+/g, '.');
-      setPaymentUrl(`https://aurelis.com/pay/${userNameSlug}/req?amt=${amount}&curr=${currency}`);
+      setPaymentUrl(`https://dbs.com.bd/pay/${userNameSlug}/req?amt=${amount}&curr=${currency}`);
       setIsGenerated(true);
     } finally {
       setIsCreating(false);

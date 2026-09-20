@@ -8,7 +8,7 @@ export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
     email: string;
-    tier: string;
+    tier?: string;
   };
 }
 
@@ -46,7 +46,7 @@ export async function authMiddleware(
     req.user = {
       id: user.id,
       email: user.email,
-      tier: user.tier || 'Private Client',
+      tier: user.tier || undefined,
     };
     return next();
   } catch {

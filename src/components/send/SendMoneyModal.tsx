@@ -20,6 +20,8 @@ import {
   EyeOff,
   Delete,
   ArrowLeft,
+  Mail,
+  Smartphone,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { CurrencyCode, Recipient, Transaction } from '../../types';
@@ -65,6 +67,8 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
     wallets,
     sendMoney,
     openTxnDetail,
+    dispatchedAlerts,
+    openAlertPreview,
   } = useApp();
 
   const [step, setStep] = useState<Step>('recipient');
@@ -246,7 +250,7 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
       name: matched.fullName || 'Beneficiary',
       email: matched.email || '',
       currency: matched.baseCurrency || 'USD',
-      bankName: 'Aurelis Sovereign Vault',
+      bankName: 'DBS Bank Bangladesh',
       accountNumber: `ID: ${matched.id}`,
       routingOrIban: 'SWIFT-AURLCHZZ',
       aurelisTag: matched.aurelisTag || `@${matched.fullName.toLowerCase().replace(/\s+/g, '')}`,
@@ -489,7 +493,7 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
               {isSearching && (
                 <div className="py-8 flex flex-col items-center justify-center gap-2 text-gray-500 dark:text-slate-400">
                   <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                  <span className="text-xs">Searching Aurelis client registry...</span>
+                  <span className="text-xs">Searching DBS Bank client registry...</span>
                 </div>
               )}
 
@@ -499,7 +503,7 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
                   <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold block text-sm text-amber-900 dark:text-amber-200">Self-transfer is not permitted</span>
-                    You entered your own Aurelis account ({user?.email || user?.id}). To convert or transfer funds between your own multi-currency wallets, please use the Currency Exchange feature.
+                    You entered your own DBS Bank account ({user?.email || user?.id}). To convert or transfer funds between your own multi-currency wallets, please use the Currency Exchange feature.
                   </div>
                 </div>
               )}
@@ -571,7 +575,7 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
                   <Search className="w-6 h-6 text-gray-400 dark:text-slate-500 mx-auto opacity-50 mb-1" />
                   <div className="text-xs font-bold text-gray-900 dark:text-white">No Registered Client Found</div>
                   <p className="text-[11px] text-gray-500 dark:text-slate-400 max-w-xs mx-auto">
-                    No Aurelis account found matching "<span className="font-mono text-blue-500">{searchQuery}</span>". Please verify the User ID or Email.
+                    No DBS Bank account found matching "<span className="font-mono text-blue-500">{searchQuery}</span>". Please verify the User ID or Email.
                   </p>
                 </div>
               )}
@@ -856,7 +860,7 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
                 <div className="flex justify-between text-xs pb-2 border-b border-gray-200 dark:border-white/10">
                   <span className="text-gray-500 dark:text-slate-400">From</span>
                   <span className="font-semibold text-gray-900 dark:text-white">
-                    AURELIS {fromCurrency} Wallet
+                    DBS Bank {fromCurrency} Wallet
                   </span>
                 </div>
 
@@ -909,7 +913,7 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
               <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 text-xs text-gray-500 dark:text-slate-400 flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
                 <span>
-                  Protected by AURELIS Sovereign Cryptographic Settlement. Irreversible once dispatched.
+                  Protected by DBS Bank Secure Cryptographic Settlement. Irreversible once dispatched.
                 </span>
               </div>
 
@@ -1168,6 +1172,85 @@ export const SendMoneyModal: React.FC<SendMoneyModalProps> = ({
                 )}
                 <div className="text-[11px] font-mono text-gray-400 dark:text-slate-500 mt-1">
                   Reference: {completedTxn.id}
+                </div>
+              </div>
+
+              {/* Multi-Channel Alerts Dispatched Notice */}
+              <div className="max-w-md mx-auto p-3.5 rounded-2xl bg-blue-50/60 dark:bg-white/[0.04] border border-blue-200/80 dark:border-white/10 space-y-2 text-left shadow-xs">
+                <div className="text-[10px] uppercase font-bold tracking-wider text-blue-700 dark:text-blue-400 flex items-center justify-between">
+                  <span>Transaction Alerts Dispatched</span>
+                  <span className="text-[9px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-semibold border border-emerald-500/30">
+                    Delivered
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div
+                    onClick={() => {
+                      const mailAlert = dispatchedAlerts.find(
+                        (a) => a.channel === 'EMAIL' && a.transactionId === completedTxn.id
+                      ) || {
+                        id: `mail_${Date.now()}`,
+                        userId: user.id,
+                        transactionId: completedTxn.id,
+                        channel: 'EMAIL' as const,
+                        recipient: user.email,
+                        subject: `Transaction Confirmation: Dispatched ${formatCurrency(completedTxn.amount, completedTxn.currency)} to ${selectedRecipient.name}`,
+                        bodyText: `Dispatched ${formatCurrency(completedTxn.amount, completedTxn.currency)} to ${selectedRecipient.name}. Ref: ${completedTxn.id}.`,
+                        status: 'DELIVERED' as const,
+                        createdAt: new Date().toISOString(),
+                      };
+                      openAlertPreview(mailAlert);
+                    }}
+                    className="p-2.5 rounded-xl bg-white dark:bg-white/[0.04] border border-blue-100 dark:border-white/10 hover:border-blue-300 dark:hover:border-white/20 flex items-center justify-between gap-2 cursor-pointer transition-all group shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2 text-xs">
+                      <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                      <span className="text-gray-700 dark:text-slate-300">
+                        Email receipt dispatched to <strong className="font-mono text-gray-900 dark:text-white">{user.email}</strong>
+                      </span>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors shrink-0" />
+                  </div>
+
+                  <div
+                    onClick={() => {
+                      const d = new Date(completedTxn.date || Date.now());
+                      const day = String(d.getDate()).padStart(2, '0');
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const year = d.getFullYear();
+                      const hours = String(d.getHours()).padStart(2, '0');
+                      const mins = String(d.getMinutes()).padStart(2, '0');
+                      const dateStr = `${day}/${month}/${year} ${hours}:${mins}`;
+                      const formattedAmount = Number(completedTxn.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                      const currentBalance = Number(fromWallet?.balance ?? safeWallets[0]?.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                      const counterparty = selectedRecipient.phone || selectedRecipient.accountNumber || selectedRecipient.name;
+
+                      const smsAlert = dispatchedAlerts.find(
+                        (a) => a.channel === 'SMS' && a.transactionId === completedTxn.id
+                      ) || {
+                        id: `sms_${Date.now()}`,
+                        userId: user.id,
+                        transactionId: completedTxn.id,
+                        channel: 'SMS' as const,
+                        recipient: user.phone || '+880 1800-000000',
+                        subject: 'DBS Bank Alert: Transfer Completed',
+                        bodyText: `Send Money Tk ${formattedAmount} to ${counterparty} successful. Fee Tk 0.00. Balance Tk ${currentBalance}. TrxID ${completedTxn.id} at ${dateStr}.`,
+                        status: 'DELIVERED' as const,
+                        createdAt: new Date().toISOString(),
+                      };
+                      openAlertPreview(smsAlert);
+                    }}
+                    className="p-2.5 rounded-xl bg-white dark:bg-white/[0.04] border border-blue-100 dark:border-white/10 hover:border-blue-300 dark:hover:border-white/20 flex items-center justify-between gap-2 cursor-pointer transition-all group shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2 text-xs">
+                      <Smartphone className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span className="text-gray-700 dark:text-slate-300">
+                        Mobile SMS alert sent to <strong className="font-mono text-gray-900 dark:text-white">{user.phone || '+880 1700-000000'}</strong>
+                      </span>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors shrink-0" />
+                  </div>
                 </div>
               </div>
 

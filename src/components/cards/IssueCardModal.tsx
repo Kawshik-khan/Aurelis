@@ -28,7 +28,7 @@ export const IssueCardModal: React.FC<IssueCardModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Issue AURELIS Card"
+      title="Issue DBS Bank Card"
       subtitle="Select metal craftsmanship or instant virtual tokenization"
       maxWidth="md"
     >
